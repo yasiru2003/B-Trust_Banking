@@ -52,9 +52,10 @@ const CustomerForm = ({ onClose, onSuccess }) => {
         console.error('Customer creation error:', error);
         const errorMessage = error.response?.data?.message || 'Failed to create customer';
         const statusCode = error.response?.status;
-        
+
+        // Surface backend message directly to the user (e.g., "Phone number already registered with another customer")
         if (statusCode === 409) {
-          toast.error(`Conflict: ${errorMessage}. Please check if customer already exists.`);
+          toast.error(errorMessage);
         } else {
           toast.error(errorMessage);
         }

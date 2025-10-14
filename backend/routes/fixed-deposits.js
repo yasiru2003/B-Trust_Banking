@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../config/database');
 const { verifyToken, requireAgent, requireBranchAccess } = require('../middleware/auth');
 const Joi = require('joi');
+const dayjs = require('dayjs');
 
 // Validation schemas
 const fdOpeningSchema = Joi.object({
@@ -630,6 +631,60 @@ router.get('/customer/:customerId', verifyToken, requireAgent, async (req, res) 
 });
 
 module.exports = router;
+
+// POST /api/fixed-deposits/accrue-interest - Accrue daily interest for ACTIVE FDs
+router.post('/accrue-interest', verifyToken, requireAgent, async (req, res) => {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+
+    // Accrue interest for all ACTIVE FDs where accrual for today not yet recorded
+    // Simple daily interest: principal * (annual_rate/100) / 365
+    const accrueSql = `
+      WITH active_fds AS (
+        SELECT fd.fd_number,
+               fd.principal_amount,
+               fd.interest_rate,
+               fd.opening_date,
+               fd.maturity_date
+        FROM fixed_deposit fd
+        WHERE fd.status = 'ACTIVE'
+          AND CURRENT_DATE BETWEEN DATE(fd.opening_date) AND DATE(fd.maturity_date)
+      ),
+      to_accrue AS (
+        SELECT a.fd_number,
+               a.principal_amount,
+               a.interest_rate AS annual_rate,
+               CURRENT_DATE AS accrual_date,
+               ROUND(a.principal_amount * (a.interest_rate/100.0) / 365.0, 2) AS interest_amount
+        FROM active_fds a
+        LEFT JOIN fd_interest_accrual ia
+          ON ia.fd_number = a.fd_number AND ia.accrual_date = CURRENT_DATE
+        WHERE ia.id IS NULL
+      )
+      INSERT INTO fd_interest_accrual (fd_number, accrual_date, interest_amount, principal_amount, annual_rate)
+      SELECT fd_number, accrual_date, interest_amount, principal_amount, annual_rate
+      FROM to_accrue
+      RETURNING *;
+    `;
+
+    const result = await client.query(accrueSql);
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'FD daily interest accrued',
+      count: result.rowCount,
+      data: result.rows
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('FD interest accrual error:', error);
+    res.status(500).json({ success: false, message: 'Failed to accrue FD interest' });
+  } finally {
+    client.release();
+  }
+});
 
 
 

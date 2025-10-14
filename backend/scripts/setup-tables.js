@@ -29,6 +29,31 @@ async function setupTables() {
     }
     
     console.log('✅ Database tables setup completed!');
+
+    // Run FD interest accrual objects
+    try {
+      const fdAccrualFile = path.join(__dirname, 'create-fd-interest-accrual.sql');
+      if (fs.existsSync(fdAccrualFile)) {
+        console.log('🔄 Applying FD interest accrual SQL...');
+        const fdSql = fs.readFileSync(fdAccrualFile, 'utf8');
+        const fdStatements = fdSql.split(';').filter(stmt => stmt.trim().length > 0);
+        for (const stmt of fdStatements) {
+          try {
+            await db.query(stmt.trim());
+          } catch (err) {
+            // Ignore errors for missing dependent tables/views so script is idempotent
+            if (err.code === '42P07' /* already exists */ || err.code === '42P01' /* undefined table */) {
+              console.log('⚠️  Skipping statement (dependency/exists):', err.message);
+              continue;
+            }
+            throw err;
+          }
+        }
+        console.log('✅ FD interest accrual objects created/updated');
+      }
+    } catch (e) {
+      console.error('❌ Error applying FD interest accrual SQL:', e.message);
+    }
     
     // Create some sample accounts for existing customers
     await createSampleAccounts();

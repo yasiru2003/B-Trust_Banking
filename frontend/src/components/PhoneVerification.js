@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import api from '../services/authService';
+import toast from 'react-hot-toast';
 
 const PhoneVerification = ({ phoneNumber, onVerified, onCancel }) => {
   const [step, setStep] = useState('send'); // 'send' or 'verify'
@@ -42,10 +43,18 @@ const PhoneVerification = ({ phoneNumber, onVerified, onCancel }) => {
     },
     onSuccess: () => {
       setStep('verify');
+      toast.success('Verification code sent');
     },
     onError: (error) => {
       console.error('Failed to send verification:', error);
-      alert('Failed to send verification code. Please try again.');
+      const statusCode = error.response?.status;
+      const message = error.response?.data?.message || 'Failed to send verification code. Please try again.';
+      if (statusCode === 409) {
+        // Surface backend message like: "Phone number already registered with another customer"
+        toast.error(message);
+      } else {
+        toast.error(message);
+      }
     }
   });
 
@@ -62,13 +71,15 @@ const PhoneVerification = ({ phoneNumber, onVerified, onCancel }) => {
     onSuccess: (data) => {
       if (data.success && data.data.verified) {
         onVerified && onVerified(phoneNumber);
+        toast.success('Phone verified');
       } else {
-        alert('Invalid verification code. Please try again.');
+        toast.error('Invalid verification code. Please try again.');
       }
     },
     onError: (error) => {
       console.error('Failed to verify code:', error);
-      alert('Failed to verify code. Please try again.');
+      const message = error.response?.data?.message || 'Failed to verify code. Please try again.';
+      toast.error(message);
     }
   });
 
