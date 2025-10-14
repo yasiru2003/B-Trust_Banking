@@ -1,0 +1,104 @@
+import React from 'react';
+import { Menu, Bell, User, LogOut, Sun, Moon } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { useNavigate } from 'react-router-dom';
+
+const Header = ({ onMenuClick }) => {
+  const { user, logout, userType } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const getUserDisplayName = () => {
+    if (userType === 'employee') {
+      return user?.employee_name || user?.email;
+    } else if (userType === 'customer') {
+      return `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email;
+    } else {
+      return user?.name || user?.email;
+    }
+  };
+
+  const getUserRole = () => {
+    if (userType === 'employee') {
+      return user?.role || 'Employee';
+    } else if (userType === 'customer') {
+      return 'Customer';
+    } else {
+      return 'User';
+    }
+  };
+
+  return (
+    <header className="bg-white shadow-sm border-b border-gray-200">
+      <div className="flex items-center justify-between px-6 py-4">
+        {/* Left side */}
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onMenuClick}
+            className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 lg:hidden"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+          
+          <div className="hidden lg:block">
+            <h1 className="text-2xl font-bold text-gray-900">B-Trust Banking</h1>
+          </div>
+        </div>
+
+        {/* Right side */}
+        <div className="flex items-center space-x-4">
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? (
+              <Moon className="h-5 w-5" />
+            ) : (
+              <Sun className="h-5 w-5" />
+            )}
+          </button>
+
+          {/* Notifications */}
+          <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+          </button>
+
+          {/* User menu */}
+          <div className="flex items-center space-x-3">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium text-gray-900">{getUserDisplayName()}</p>
+              <p className="text-xs text-gray-500">{getUserRole()}</p>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center">
+                <User className="h-4 w-4 text-white" />
+              </div>
+              
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Header;
+
+
