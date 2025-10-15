@@ -89,14 +89,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     },
   ];
 
-  if (userType === 'employee' && user?.role === 'Manager') {
-    navigation.push({
-      name: 'Manager Profile',
-      href: '/manager/profile',
-      icon: User,
-      permission: null,
-    });
-  }
+ 
 
   const filteredNavigation = navigation.filter(item => 
     !item.permission || hasPermission(item.permission)
