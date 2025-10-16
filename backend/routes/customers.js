@@ -127,22 +127,28 @@ router.get('/stats', hasPermission('view_assigned_customers'), async (req, res) 
     let query = `
       SELECT 
         COUNT(*) as total_customers,
-        COUNT(CASE WHEN kyc_status = true THEN 1 END) as verified_customers,
-        COUNT(CASE WHEN kyc_status = false THEN 1 END) as unverified_customers,
-        COUNT(CASE WHEN phone_is_verified = true THEN 1 END) as phone_verified_customers
-      FROM customer
+        COUNT(CASE WHEN c.kyc_status = true THEN 1 END) as verified_customers,
+        COUNT(CASE WHEN c.kyc_status = false THEN 1 END) as unverified_customers,
+        COUNT(CASE WHEN c.phone_is_verified = true THEN 1 END) as phone_verified_customers
+      FROM customer c
+      LEFT JOIN employee_auth e ON TRIM(c.agent_id) = TRIM(e.employee_id)
     `;
-    
+
+    const conditions = [];
     const params = [];
     let paramCount = 0;
 
-    // Role-based filtering
-    if (req.userRole === 'AGENT') {
-      query += ` WHERE TRIM(agent_id) = TRIM($${++paramCount})`;
-      params.push(req.user.userId);
-    } else if (req.userRole === 'MANAGER') {
-      query += ` WHERE branch_id = (SELECT branch_id FROM employee_auth WHERE TRIM(employee_id) = TRIM($${++paramCount}))`;
-      params.push(req.user.userId);
+    // Role-based filtering aligned with auth middleware
+    if (req.user?.role === 'Agent') {
+      conditions.push(`TRIM(c.agent_id) = $${++paramCount}`);
+      params.push(req.user.employee_id.trim());
+    } else if (req.user?.role === 'Manager') {
+      conditions.push(`e.branch_id = $${++paramCount}`);
+      params.push(req.user.branch_id);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
     }
 
     const result = await db.query(query, params);
