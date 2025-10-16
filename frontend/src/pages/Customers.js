@@ -10,7 +10,7 @@ import api from '../services/authService';
 import toast from 'react-hot-toast';
 
 const Customers = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
@@ -114,20 +114,26 @@ const Customers = () => {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Branch
-            </label>
-            <select
-              value={filters.branch_id || ''}
-              onChange={(e) => setFilters({ ...filters, branch_id: e.target.value })}
-              className="input"
-            >
-              <option value="">All Branches</option>
-              <option value="1">Main Branch</option>
-              <option value="2">Downtown Branch</option>
-            </select>
-          </div>
+          {(() => {
+            console.log('User role:', user?.role);
+            console.log('User object:', user);
+            return user?.role !== 'Agent';
+          })() && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Branch
+              </label>
+              <select
+                value={filters.branch_id || ''}
+                onChange={(e) => setFilters({ ...filters, branch_id: e.target.value })}
+                className="input"
+              >
+                <option value="">All Branches</option>
+                <option value="1">Main Branch</option>
+                <option value="2">Downtown Branch</option>
+              </select>
+            </div>
+          )}
 
           <div className="flex items-end">
             <button
