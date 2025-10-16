@@ -231,7 +231,7 @@ export const AuthProvider = ({ children }) => {
           'view_all_transactions', 'create_transaction', 'approve_large_transactions',
           'view_all_employees', 'create_employee', 'update_employee', 'delete_employee',
           'view_branch_reports', 'manage_branch_settings', 'view_fraud_alerts', 'manage_fraud_settings',
-          'admin_global_access'
+          'view_fraud', 'view_all', 'admin_global_access'
         ]
       },
       customer: ['view_own_account', 'view_own_transactions'],

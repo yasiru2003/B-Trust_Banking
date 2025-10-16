@@ -16,6 +16,7 @@ import Employees from './pages/Employees';
 import FraudDetection from './pages/FraudDetection';
 import Branches from './pages/Branches';
 import Reports from './pages/Reports';
+import AdvancedReports from './pages/AdvancedReports';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import Profile from './pages/Profile';
@@ -63,6 +64,7 @@ function App() {
                   <Route path="fraud" element={<FraudDetection />} />
                   <Route path="branches" element={<Branches />} />
                   <Route path="reports" element={<Reports />} />
+                  <Route path="reports/advanced" element={<AdvancedReports />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="phone-verification-test" element={<PhoneVerificationTest />} />
                   <Route path="transaction-otp-test" element={<TransactionOTPTest />} />

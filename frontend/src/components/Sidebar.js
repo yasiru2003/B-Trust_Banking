@@ -70,10 +70,11 @@ const Sidebar = ({ isOpen, onClose }) => {
       permission: null,
     },
     {
-      name: 'Reports',
-      href: '/reports',
+      name: 'Advanced Reports',
+      href: '/reports/advanced',
       icon: BarChart3,
       permission: 'view_all',
+      adminOnly: true,
     },
     {
       name: 'Settings',
@@ -98,9 +99,17 @@ const Sidebar = ({ isOpen, onClose }) => {
     });
   }
 
-  const filteredNavigation = navigation.filter(item => 
-    !item.permission || hasPermission(item.permission)
-  );
+  const filteredNavigation = navigation.filter(item => {
+    // Check permission
+    if (item.permission && !hasPermission(item.permission)) {
+      return false;
+    }
+    // Check if admin only
+    if (item.adminOnly && (userType !== 'employee' || user?.role !== 'Admin')) {
+      return false;
+    }
+    return true;
+  });
 
   const isActive = (href) => {
     return location.pathname === href;
