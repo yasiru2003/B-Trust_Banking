@@ -259,7 +259,7 @@ const TransactionForm = ({ onClose, onSuccess }) => {
           className="input w-full"
         >
           <option value="">Select transaction type</option>
-          {transactionTypesData?.data?.map((type) => (
+          {transactionTypesData?.data?.filter(type => type.transaction_type_id !== 'INT001').map((type) => (
             <option key={type.transaction_type_id} value={type.transaction_type_id}>
               {type.type_name}
             </option>
