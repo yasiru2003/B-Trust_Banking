@@ -7,6 +7,7 @@ import Modal from '../components/Modal';
 import TransactionForm from '../components/TransactionForm';
 import api from '../services/authService';
 import toast from 'react-hot-toast';
+import { downloadTransactionReceipt } from '../utils/pdfGenerator';
 
 const Transactions = () => {
   const { hasPermission } = useAuth();
@@ -51,6 +52,20 @@ const Transactions = () => {
   const handleViewTransaction = (transaction) => {
     setSelectedTransaction(transaction);
     setIsViewModalOpen(true);
+  };
+
+  const handleDownloadReceipt = (transaction) => {
+    try {
+      const result = downloadTransactionReceipt(transaction);
+      if (result.success) {
+        toast.success(`Receipt downloaded: ${result.filename}`);
+      } else {
+        toast.error(`Failed to generate PDF: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download receipt');
+    }
   };
 
   const transactions = transactionsData?.data || [];
@@ -285,7 +300,11 @@ const Transactions = () => {
                             <Eye className="h-4 w-4" />
                           </button>
                           {hasPermission('view_all_transactions') && (
-                            <button className="btn btn-ghost btn-sm" title="Download Receipt">
+                            <button 
+                              onClick={() => handleDownloadReceipt(transaction)}
+                              className="btn btn-ghost btn-sm" 
+                              title="Download Receipt"
+                            >
                               <Download className="h-4 w-4" />
                             </button>
                           )}
@@ -397,6 +416,13 @@ const Transactions = () => {
             )}
 
             <div className="flex justify-end pt-4 border-t">
+              <button
+                onClick={() => handleDownloadReceipt(selectedTransaction)}
+                className="btn btn-primary mr-2"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Receipt
+              </button>
               <button
                 onClick={() => setIsViewModalOpen(false)}
                 className="btn btn-outline"
