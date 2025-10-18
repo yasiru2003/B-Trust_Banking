@@ -55,7 +55,7 @@ export const generateTransactionReceipt = (transaction) => {
   doc.setFont('helvetica', 'bold');
   doc.text('Transaction Type:', 20, currentY);
   doc.setFont('helvetica', 'normal');
-  const transactionType = transaction.transaction_type || transaction.type_name || 'N/A';
+  const transactionType = transaction.type_name === 'Interest_Calculation' ? 'Interest Calculation' : (transaction.type_name || transaction.transaction_type || 'N/A');
   doc.text(transactionType, 80, currentY);
   currentY += 15;
   
