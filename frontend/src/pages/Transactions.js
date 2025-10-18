@@ -173,13 +173,14 @@ const Transactions = () => {
               Transaction Type
             </label>
             <select
-              value={filters.transaction_type || ''}
-              onChange={(e) => setFilters({ ...filters, transaction_type: e.target.value })}
+              value={filters.transaction_type_id || ''}
+              onChange={(e) => setFilters({ ...filters, transaction_type_id: e.target.value })}
               className="input"
             >
               <option value="">All Types</option>
-              <option value="Deposit">Deposit</option>
-              <option value="Withdraw">Withdrawal</option>
+              <option value="DEP001">Deposit</option>
+              <option value="WIT001">Withdrawal</option>
+              <option value="INT001">Interest Calculation</option>
             </select>
           </div>
 
@@ -257,13 +258,15 @@ const Transactions = () => {
                       </td>
                       <td className="table-cell">
                         <span className={`badge ${
-                          transaction.transaction_type === 'Deposit' 
+                          transaction.type_name === 'Deposit' 
                             ? 'badge-success' 
-                            : transaction.transaction_type === 'Withdraw'
+                            : transaction.type_name === 'Withdraw'
                             ? 'badge-warning'
-                            : 'badge-info'
+                            : transaction.type_name === 'Interest_Calculation'
+                            ? 'badge-info'
+                            : 'badge-secondary'
                         }`}>
-                          {transaction.transaction_type}
+                          {transaction.type_name === 'Interest_Calculation' ? 'Interest Calculation' : transaction.type_name || 'Unknown'}
                         </span>
                       </td>
                       <td className="table-cell">
@@ -359,13 +362,15 @@ const Transactions = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Type</label>
                 <span className={`badge ${
-                  selectedTransaction.transaction_type === 'Deposit' 
+                  selectedTransaction.type_name === 'Deposit' 
                     ? 'badge-success' 
-                    : selectedTransaction.transaction_type === 'Withdraw'
+                    : selectedTransaction.type_name === 'Withdraw'
                     ? 'badge-warning'
-                    : 'badge-info'
+                    : selectedTransaction.type_name === 'Interest_Calculation'
+                    ? 'badge-info'
+                    : 'badge-secondary'
                 }`}>
-                  {selectedTransaction.transaction_type}
+                  {selectedTransaction.type_name === 'Interest_Calculation' ? 'Interest Calculation' : selectedTransaction.type_name || 'Unknown'}
                 </span>
               </div>
             </div>
