@@ -51,13 +51,19 @@ const TransactionForm = ({ onClose, onSuccess }) => {
     queryFn: async () => {
       const response = await api.get('/transactions/types');
       return response.data;
-    }
+    },
+    staleTime: 0, // Force fresh data every time
+    cacheTime: 0  // Don't cache the data
   });
 
   // Log transaction types for debugging
   useEffect(() => {
     if (transactionTypesData) {
       console.log('Transaction types loaded:', transactionTypesData);
+      console.log('All transaction types:', transactionTypesData.data);
+      const filteredTypes = transactionTypesData.data?.filter(type => type.transaction_type_id.trim() !== 'INT001');
+      console.log('Filtered transaction types (excluding INT001):', filteredTypes);
+      console.log('Transaction type IDs with spaces:', transactionTypesData.data?.map(t => `"${t.transaction_type_id}"`));
     }
     if (transactionTypesError) {
       console.error('Error loading transaction types:', transactionTypesError);
@@ -259,7 +265,7 @@ const TransactionForm = ({ onClose, onSuccess }) => {
           className="input w-full"
         >
           <option value="">Select transaction type</option>
-          {transactionTypesData?.data?.filter(type => type.transaction_type_id !== 'INT001').map((type) => (
+          {transactionTypesData?.data?.filter(type => type.transaction_type_id.trim() !== 'INT001').map((type) => (
             <option key={type.transaction_type_id} value={type.transaction_type_id}>
               {type.type_name}
             </option>
