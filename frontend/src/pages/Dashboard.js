@@ -8,7 +8,8 @@ import {
   TrendingUp, 
   DollarSign,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  UserCheck  
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -26,6 +27,11 @@ const Dashboard = () => {
         customer: ['/accounts', '/transactions/customer'],
         user: ['/users/profile']
       };
+
+      // Add employees stats for managers
+      if (userType === 'employee' && user?.role === 'Manager') {
+        endpoints.employee.push('/employees/stats');
+      }
 
       const promises = (endpoints[userType] || []).map(endpoint => 
         api.get(endpoint).then(res => res.data)
@@ -65,11 +71,11 @@ const Dashboard = () => {
 
   const getDashboardCards = () => {
     if (userType === 'employee') {
-      const [customerStats, accountStats, transactionStats] = dashboardData || [];
+      const [customerStats, accountStats, transactionStats,employeesStats] = dashboardData || [];
 
       const isAgent = user?.role === 'Agent';
-      
-      return [
+      const isManager = user?.role === 'Manager';
+      const cards = [     //card added instead return
         {
           title: isAgent ? 'My Customers' : 'Total Customers',
           value: customerStats?.data?.total_customers || 0,
@@ -99,6 +105,18 @@ const Dashboard = () => {
           change: isAgent ? 'Across your customers' : 'Across all accounts',
         },
       ];
+      // Add agent count for managers
+      if (isManager && employeesStats) {
+        cards.push({
+          title: 'Total Agents',
+          value: employeesStats?.data?.total_agents || 0,
+          icon: UserCheck,
+          color: 'indigo',
+          change: 'All active agents'
+        });
+      }
+      return cards;
+      
     } else if (userType === 'customer') {
       const [accounts, transactions] = dashboardData || [];
       const totalBalance = accounts?.data?.reduce((sum, account) => sum + parseFloat(account.current_balance || 0), 0) || 0;
@@ -185,6 +203,7 @@ const Dashboard = () => {
       case 'green': return 'bg-green-500';
       case 'purple': return 'bg-purple-500';
       case 'yellow': return 'bg-yellow-500';
+      case 'indigo': return 'bg-indigo-500';
       default: return 'bg-gray-500';
     }
   };
@@ -228,7 +247,7 @@ const Dashboard = () => {
       {/* Recent Activity */}
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{userType === 'employee' && user?.role === 'Manager' ? 'Alert' : 'Recent Activity'</h2>
         </div>
         <div className="p-6">
           <div className="space-y-4">
