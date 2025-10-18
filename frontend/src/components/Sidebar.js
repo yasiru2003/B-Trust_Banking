@@ -90,11 +90,20 @@ const Sidebar = ({ isOpen, onClose }) => {
     },
   ];
 
- 
+  
+
 
   const filteredNavigation = navigation.filter(item => 
     !item.permission || hasPermission(item.permission)
   );
+
+  // Managers should not see Branches or Settings tabs
+  const finalNavigation = filteredNavigation.filter(item => {
+    if (user?.role === 'Manager' && (item.name === 'Branches' || item.name === 'Settings')) {
+      return false;
+    }
+    return true;
+  });
 
   const isActive = (href) => {
     return location.pathname === href;
@@ -127,7 +136,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         <nav className="mt-8 px-4">
           <ul className="space-y-2">
-            {filteredNavigation.map((item) => {
+            {finalNavigation.map((item) => {
               const Icon = item.icon;
               return (
                 <li key={item.name}>
