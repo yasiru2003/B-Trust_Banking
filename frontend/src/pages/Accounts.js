@@ -192,24 +192,25 @@ const Accounts = () => {
           <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
           <p className="text-gray-600">Manage customer accounts and balances</p>
         </div>
-        <button 
-          onClick={() => {
-            console.log('Open Account button clicked');
-            console.log('Errors:', { customersError, accountTypesError, branchesError });
-            console.log('Data available:', { 
-              customers: customersData?.data?.length || 0, 
-              accountTypes: accountTypes?.data?.length || 0, 
-              branches: branchesData?.data?.length || 0 
-            });
-            
-            console.log('Opening modal...');
-            setIsCreateModalOpen(true);
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Open Account
-        </button>
+        {!isManager && (
+          <button 
+            onClick={() => {
+              console.log('Open Account button clicked');
+              console.log('Errors:', { customersError, accountTypesError, branchesError });
+              console.log('Data available:', { 
+                customers: customersData?.data?.length || 0, 
+                accountTypes: accountTypes?.data?.length || 0, 
+                branches: branchesData?.data?.length || 0 
+              });
+              console.log('Opening modal...');
+              setIsCreateModalOpen(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Open Account
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -226,7 +227,7 @@ const Accounts = () => {
             />
           </div>
           
-          {!isAgent && (
+          {!isAgent && !isManager && (
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
@@ -289,9 +290,14 @@ const Accounts = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Account Type
                   </th>
-                  {!isAgent && (
+                  {!isAgent && !isManager && (
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Branch
+                    </th>
+                  )}
+                  {user?.role === 'Manager' && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Agent
                     </th>
                   )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -326,10 +332,17 @@ const Accounts = () => {
                         {account.account_type || 'N/A'}
                       </div>
                     </td>
-                    {!isAgent && (
+                    {!isAgent && !isManager && (
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           {account.branch_name || 'N/A'}
+                        </div>
+                      </td>
+                    )}
+                    {user?.role === 'Manager' && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {account.agent_name || account.employee_name || account.agent || account.agent_id || '-'}
                         </div>
                       </td>
                     )}
@@ -374,19 +387,21 @@ const Accounts = () => {
       </div>
 
       {/* Create Account Modal */}
-      <Modal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Open New Account"
-      >
-        <AccountForm
-          customers={customersData?.data || []}
-          accountTypes={accountTypes?.data || []}
-          branches={branchesData?.data || []}
-          onSubmit={handleCreateAccount}
-          isLoading={createAccountMutation.isLoading}
-        />
-      </Modal>
+      {!isManager && (
+        <Modal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          title="Open New Account"
+        >
+          <AccountForm
+            customers={customersData?.data || []}
+            accountTypes={accountTypes?.data || []}
+            branches={branchesData?.data || []}
+            onSubmit={handleCreateAccount}
+            isLoading={createAccountMutation.isLoading}
+          />
+        </Modal>
+      )}    
     </div>
   );
 };
@@ -559,7 +574,7 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
         </select>
       </div>
 
-      {!isAgent && (
+      {!isAgent && !isManager &&(
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Branch
