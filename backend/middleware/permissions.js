@@ -82,15 +82,31 @@ const hasPermission = (permission) => {
       
       // Handle employee role mapping
       if (userRole === 'EMPLOYEE') {
-        // Get the actual role from the database
+        // Get the actual role and full user details from the database
         const db = require('../config/database');
         const result = await db.query(
-          'SELECT role FROM employee_auth WHERE employee_id = $1',
+          'SELECT * FROM employee_auth WHERE employee_id = $1',
           [decoded.userId]
         );
         if (result.rows.length > 0) {
           userRole = result.rows[0].role.toUpperCase();
+          // Add full user object to request
+          req.user = {
+            ...decoded,
+            ...result.rows[0],
+            employee_id: result.rows[0].employee_id,
+            role: result.rows[0].role,
+            branch_id: result.rows[0].branch_id
+          };
+        } else {
+          return res.status(401).json({
+            success: false,
+            message: 'User not found.'
+          });
         }
+      } else {
+        // For non-employees, just use the decoded token
+        req.user = decoded;
       }
       
       // Check if user has the required permission
@@ -101,8 +117,7 @@ const hasPermission = (permission) => {
         });
       }
 
-      // Add user info to request
-      req.user = decoded;
+      // Add user role to request
       req.userRole = userRole;
       next();
     } catch (error) {

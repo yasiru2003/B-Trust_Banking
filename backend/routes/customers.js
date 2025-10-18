@@ -140,7 +140,7 @@ router.get('/stats', hasPermission('view_assigned_customers'), async (req, res) 
 
     // Role-based filtering aligned with auth middleware
     if (req.user?.role === 'Agent') {
-      conditions.push(`TRIM(c.agent_id) = $${++paramCount}`);
+      conditions.push(`TRIM(c.agent_id) = TRIM($${++paramCount})`);
       params.push(req.user.employee_id.trim());
     } else if (req.user?.role === 'Manager') {
       conditions.push(`e.branch_id = $${++paramCount}`);
