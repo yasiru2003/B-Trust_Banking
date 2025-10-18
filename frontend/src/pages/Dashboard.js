@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Users, 
@@ -12,10 +12,19 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Modal from '../components/Modal';
+import CustomerForm from '../components/CustomerForm';
+import TransactionForm from '../components/TransactionForm';
+import AccountForm from '../components/AccountForm';
 import api from '../services/authService';
 
 const Dashboard = () => {
   const { userType, user } = useAuth();
+  
+  // Modal states
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+  const [isOpenAccountModalOpen, setIsOpenAccountModalOpen] = useState(false);
+  const [isProcessTransactionModalOpen, setIsProcessTransactionModalOpen] = useState(false);
 
   // Fetch dashboard data based on user type
   const { data: dashboardData, isLoading } = useQuery({
@@ -37,6 +46,48 @@ const Dashboard = () => {
     enabled: !!userType,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
+
+  // Fetch data needed for AccountForm
+  const { data: customersData } = useQuery({
+    queryKey: 'customers-for-account',
+    queryFn: async () => {
+      const response = await api.get('/customers?limit=100');
+      return response.data;
+    },
+    enabled: isOpenAccountModalOpen
+  });
+
+  const { data: accountTypesData } = useQuery({
+    queryKey: 'account-types',
+    queryFn: async () => {
+      const response = await api.get('/accounts/types');
+      return response.data;
+    },
+    enabled: isOpenAccountModalOpen
+  });
+
+  const { data: branchesData } = useQuery({
+    queryKey: 'branches',
+    queryFn: async () => {
+      const response = await api.get('/branches');
+      return response.data;
+    },
+    enabled: isOpenAccountModalOpen
+  });
+
+  // Handler for creating accounts
+  const handleCreateAccount = async (accountData) => {
+    try {
+      const response = await api.post('/accounts', accountData);
+      if (response.data.success) {
+        setIsOpenAccountModalOpen(false);
+        // Refresh dashboard data
+        window.location.reload(); // Simple refresh for now
+      }
+    } catch (error) {
+      console.error('Create account error:', error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -253,21 +304,80 @@ const Dashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="btn btn-primary">
+            <button 
+              onClick={() => setIsAddCustomerModalOpen(true)}
+              className="btn btn-primary"
+            >
               <Users className="h-4 w-4 mr-2" />
               Add Customer
             </button>
-            <button className="btn btn-secondary">
+            <button 
+              onClick={() => setIsOpenAccountModalOpen(true)}
+              className="btn btn-secondary"
+            >
               <CreditCard className="h-4 w-4 mr-2" />
               Open Account
             </button>
-            <button className="btn btn-outline">
+            <button 
+              onClick={() => setIsProcessTransactionModalOpen(true)}
+              className="btn btn-outline"
+            >
               <ArrowLeftRight className="h-4 w-4 mr-2" />
               Process Transaction
             </button>
           </div>
         </div>
       )}
+
+      {/* Add Customer Modal */}
+      <Modal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        title="Add New Customer"
+        size="lg"
+      >
+        <CustomerForm
+          onClose={() => setIsAddCustomerModalOpen(false)}
+          onSuccess={() => {
+            setIsAddCustomerModalOpen(false);
+            // Refresh dashboard data
+            window.location.reload();
+          }}
+        />
+      </Modal>
+
+      {/* Open Account Modal */}
+      <Modal
+        isOpen={isOpenAccountModalOpen}
+        onClose={() => setIsOpenAccountModalOpen(false)}
+        title="Open New Account"
+        size="lg"
+      >
+        <AccountForm
+          customers={customersData?.data || []}
+          accountTypes={accountTypesData?.data || []}
+          branches={branchesData?.data || []}
+          onSubmit={handleCreateAccount}
+          isLoading={false}
+        />
+      </Modal>
+
+      {/* Process Transaction Modal */}
+      <Modal
+        isOpen={isProcessTransactionModalOpen}
+        onClose={() => setIsProcessTransactionModalOpen(false)}
+        title="Create New Transaction"
+        size="lg"
+      >
+        <TransactionForm
+          onClose={() => setIsProcessTransactionModalOpen(false)}
+          onSuccess={() => {
+            setIsProcessTransactionModalOpen(false);
+            // Refresh dashboard data
+            window.location.reload();
+          }}
+        />
+      </Modal>
     </div>
   );
 };
