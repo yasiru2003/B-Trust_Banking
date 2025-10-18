@@ -127,6 +127,28 @@ router.get('/stats', verifyToken, requireEmployee, async (req, res) => {
   }
 });
 
+// GET /api/accounts/types - Get all account types
+router.get('/types', verifyToken, requireEmployee, async (req, res) => {
+  try {
+    console.log('Fetching account types...');
+    const result = await db.query('SELECT * FROM account_type ORDER BY type_name');
+    console.log('Account types query result:', result.rows);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Get account types error:', error);
+    console.error('Error details:', error.message, error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch account types',
+      error: error.message
+    });
+  }
+});
+
 // GET /api/accounts/:accountNumber - Get account by number
 router.get('/:accountNumber', verifyToken, requireEmployee, async (req, res) => {
   try {
@@ -318,48 +340,5 @@ router.get('/customer/:customerId', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/accounts/types - Get all account types
-router.get('/types', verifyToken, requireEmployee, async (req, res) => {
-  try {
-    console.log('Fetching account types...');
-    const result = await db.query('SELECT * FROM account_type ORDER BY type_name');
-    console.log('Account types query result:', result.rows);
-    
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Get account types error:', error);
-    console.error('Error details:', error.message, error.stack);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch account types',
-      error: error.message
-    });
-  }
-});
-
-// GET /api/accounts/types/public - Get all account types (no auth required for testing)
-router.get('/types/public', async (req, res) => {
-  try {
-    console.log('Fetching account types (public)...');
-    const result = await db.query('SELECT * FROM account_type ORDER BY type_name');
-    console.log('Account types query result (public):', result.rows);
-    
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Get account types error (public):', error);
-    console.error('Error details:', error.message, error.stack);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch account types',
-      error: error.message
-    });
-  }
-});
 
 module.exports = router;
