@@ -30,6 +30,10 @@
     @apply bg-green-600 text-white hover:bg-green-700 h-10 py-2 px-4;
   }
   
+  .btn-warning {
+    @apply bg-orange-500 text-white hover:bg-orange-600 h-10 py-2 px-4;
+  }
+  
   .btn-danger {
     @apply bg-red-600 text-white hover:bg-red-700 h-10 py-2 px-4;
   }
