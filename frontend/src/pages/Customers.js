@@ -16,6 +16,9 @@ const Customers = () => {
   const [filters, setFilters] = useState({});
   const [page, setPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [fetchingCustomerId, setFetchingCustomerId] = useState(null);
 
   // Fetch customers
   const { data: customersData, isLoading } = useQuery({
@@ -58,6 +61,23 @@ const Customers = () => {
       deleteCustomerMutation.mutate(customerId);
     }
   };
+  const handleEdit = async (customer) => {
+    // fetch fresh customer details before opening the edit form
+    const id = customer?.customer_id || customer;
+    if (!id) return;
+    try {
+      setFetchingCustomerId(id);
+      const response = await api.get(`/customers/${id}`);
+      const customerData = response.data?.data || response.data;
+      setSelectedCustomer(customerData);
+      setIsEditModalOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch customer details', error);
+      toast.error('Failed to load customer details');
+    } finally {
+      setFetchingCustomerId(null);
+    }
+  };
 
   const customers = customersData?.data || [];
 
@@ -69,7 +89,7 @@ const Customers = () => {
           <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
           <p className="text-gray-600">Manage customer accounts and information</p>
         </div>
-        {hasPermission('create_customer') && (
+        {hasPermission('create_customer') && user?.role !== 'Manager' && (
           <button 
             onClick={() => setIsAddModalOpen(true)}
             className="btn btn-primary"
@@ -82,7 +102,7 @@ const Customers = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-${user?.role === 'Manager' ? '3' : '4'} gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Search
@@ -117,7 +137,7 @@ const Customers = () => {
           {(() => {
             console.log('User role:', user?.role);
             console.log('User object:', user);
-            return user?.role !== 'Agent';
+            return user?.role !== 'Agent' && user?.role !== 'Manager' ;
           })() && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -162,6 +182,9 @@ const Customers = () => {
                     <th className="table-head">Customer ID</th>
                     <th className="table-head">Name</th>
                     <th className="table-head">Email</th>
+                    {user?.role === 'Manager' && (
+                      <th className="table-head">Agent</th>
+                    )}
                     <th className="table-head">Phone</th>
                     <th className="table-head">KYC Status</th>
                     <th className="table-head">Actions</th>
@@ -195,6 +218,9 @@ const Customers = () => {
                         </div>
                       </td>
                       <td className="table-cell">{customer.email}</td>
+                      {user?.role === 'Manager' && (
+                        <td className="table-cell">{customer.agent_name || customer.agent_id || '-'}</td>
+                      )}        
                       <td className="table-cell">
                         <div>
                           <div>{customer.phone_number}</div>
@@ -215,12 +241,20 @@ const Customers = () => {
                           <button className="btn btn-ghost btn-sm">
                             <Eye className="h-4 w-4" />
                           </button>
-                          {hasPermission('update_customer') && (
-                            <button className="btn btn-ghost btn-sm">
-                              <Edit className="h-4 w-4" />
+                          {hasPermission('update_customer') || user?.role === 'Manager' && (
+                            <button 
+                              onClick={() => handleEdit(customer)}
+                              className="btn btn-ghost btn-sm"
+                              disabled={fetchingCustomerId === customer.customer_id}
+                            >
+                              {fetchingCustomerId === customer.customer_id ? (
+                                <LoadingSpinner size="xs" />
+                              ) : (
+                                <Edit className="h-4 w-4" />
+                              )}
                             </button>
                           )}
-                          {hasPermission('delete_customer') && (
+                          {hasPermission('delete_customer') || user?.role === 'Manager' && (
                             <button
                               onClick={() => handleDelete(customer.customer_id)}
                               className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
@@ -257,6 +291,33 @@ const Customers = () => {
           onClose={() => setIsAddModalOpen(false)}
           onSuccess={() => {
             // Modal will be closed by CustomerForm
+          }}
+        />
+      </Modal>
+      {/* Edit Customer Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedCustomer(null);
+        }}
+        title="Edit Customer"
+        size="lg"
+      >
+        <CustomerForm
+          customer={selectedCustomer}
+          isEdit={true}
+          // CHANGE: allow editing phone and photo in edit mode when true
+          allowPhonePhotoUpdate={true}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedCustomer(null);
+          }}
+          onSuccess={() => {
+            setIsEditModalOpen(false);
+            setSelectedCustomer(null);
+            queryClient.invalidateQueries('customers');
+            toast.success('Customer updated successfully');
           }}
         />
       </Modal>
