@@ -165,7 +165,6 @@ const Transactions = () => {
               <option value="">All Types</option>
               <option value="Deposit">Deposit</option>
               <option value="Withdraw">Withdrawal</option>
-              <option value="Interest_Calculation">Interest</option>
             </select>
           </div>
 

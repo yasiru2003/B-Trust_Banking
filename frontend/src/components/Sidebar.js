@@ -63,12 +63,13 @@ const Sidebar = ({ isOpen, onClose }) => {
       icon: Shield,
       permission: 'view_fraud',
     },
-    {
+    // Hide Branches for Agents; allow Managers/Admins via explicit permission or role
+    ...(user?.role === 'Agent' ? [] : [{
       name: 'Branches',
       href: '/branches',
       icon: Building2,
       permission: null,
-    },
+    }]),
     {
       name: 'Reports',
       href: '/reports',
@@ -89,14 +90,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     },
   ];
 
-  if (userType === 'employee' && user?.role === 'Manager') {
-    navigation.push({
-      name: 'Manager Profile',
-      href: '/manager/profile',
-      icon: User,
-      permission: null,
-    });
-  }
+ 
 
   const filteredNavigation = navigation.filter(item => 
     !item.permission || hasPermission(item.permission)

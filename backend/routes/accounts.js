@@ -87,17 +87,36 @@ router.get('/', verifyToken, requireEmployee, async (req, res) => {
 // GET /api/accounts/stats - Get account statistics
 router.get('/stats', verifyToken, requireEmployee, async (req, res) => {
   try {
-    const query = `
+    let query = `
       SELECT 
         COUNT(*) as total_accounts,
-        COUNT(CASE WHEN status = true THEN 1 END) as active_accounts,
-        COUNT(CASE WHEN status = false THEN 1 END) as inactive_accounts,
-        SUM(current_balance) as total_balance,
-        AVG(current_balance) as average_balance,
-        COUNT(CASE WHEN opening_date >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_accounts_30d
-      FROM account
+        COUNT(CASE WHEN a.status = true THEN 1 END) as active_accounts,
+        COUNT(CASE WHEN a.status = false THEN 1 END) as inactive_accounts,
+        SUM(a.current_balance) as total_balance,
+        AVG(a.current_balance) as average_balance,
+        COUNT(CASE WHEN a.opening_date >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_accounts_30d
+      FROM account a
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      LEFT JOIN employee_auth e ON TRIM(c.agent_id) = TRIM(e.employee_id)
     `;
-    const result = await db.query(query);
+
+    const conditions = [];
+    const params = [];
+    let paramCount = 0;
+
+    if (req.user.role === 'Agent') {
+      conditions.push(`TRIM(c.agent_id) = $${++paramCount}`);
+      params.push(req.user.employee_id.trim());
+    } else if (req.user.role === 'Manager') {
+      conditions.push(`a.branch_id = $${++paramCount}`);
+      params.push(req.user.branch_id);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    const result = await db.query(query, params);
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     console.error('Get account stats error:', error);

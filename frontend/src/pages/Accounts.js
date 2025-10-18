@@ -301,6 +301,9 @@ const Accounts = () => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    More Details
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -345,6 +348,19 @@ const Accounts = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button 
+                        onClick={() => {
+                          // Show account details in a modal or expandable row
+                          console.log('More details for account:', account);
+                          alert(`Account Details:\n\nAccount Number: ${account.account_number}\nCustomer: ${account.customer_name}\nType: ${account.account_type}\nBalance: LKR ${parseFloat(account.current_balance || 0).toLocaleString()}\nStatus: ${account.status ? 'Active' : 'Inactive'}\nOpening Date: ${account.opening_date || 'N/A'}`);
+                        }}
+                        className="text-green-600 hover:text-green-900 mr-3"
+                        title="View More Details"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button className="text-blue-600 hover:text-blue-900 mr-3">
                         <Eye className="h-4 w-4" />
                       </button>
@@ -383,6 +399,8 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
     branch_id: '',
     current_balance: 0
   });
+  const [selectedAccountType, setSelectedAccountType] = useState(null);
+  const [balanceError, setBalanceError] = useState('');
 
   // Get user info from AuthContext
   const { user } = useAuth();
@@ -392,20 +410,111 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    console.log('Form submission - selectedAccountType:', selectedAccountType);
+    console.log('Form submission - formData:', formData);
+    
+    // Validate minimum balance
+    if (selectedAccountType && selectedAccountType.minimum_balance) {
+      const minBalance = parseFloat(selectedAccountType.minimum_balance);
+      const enteredBalance = parseFloat(formData.current_balance);
+      
+      console.log('Validation - minBalance:', minBalance, 'enteredBalance:', enteredBalance);
+      
+      if (enteredBalance < minBalance) {
+        console.log('Validation failed - balance too low');
+        setBalanceError(`Minimum balance required: LKR ${minBalance.toLocaleString()}`);
+        return;
+      }
+    } else if (selectedAccountType && selectedAccountType.acc_type_id === 'SAV001') {
+      // Fallback validation for Savings Account if minimum_balance is not loaded
+      const minBalance = 1000;
+      const enteredBalance = parseFloat(formData.current_balance);
+      
+      console.log('Fallback validation - SAV001 minBalance:', minBalance, 'enteredBalance:', enteredBalance);
+      
+      if (enteredBalance < minBalance) {
+        console.log('Fallback validation failed - balance too low');
+        setBalanceError(`Minimum balance required for Savings Account: LKR ${minBalance.toLocaleString()}`);
+        return;
+      }
+    }
+    
+    // Clear any previous errors
+    setBalanceError('');
+    
     // For agents, automatically set the branch_id to their assigned branch
     const submitData = { ...formData };
     if (isAgent && agentBranchId) {
       submitData.branch_id = agentBranchId;
     }
     
+    console.log('Submitting data:', submitData);
     onSubmit(submitData);
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+    
+    // Handle account type change
+    if (name === 'acc_type_id') {
+      const accountType = accountTypes.find(type => type.acc_type_id === value);
+      console.log('Selected account type:', accountType);
+      setSelectedAccountType(accountType);
+      
+      // Clear balance error when account type changes
+      setBalanceError('');
+      
+      // If there's a minimum balance, set it as the default
+      if (accountType && accountType.minimum_balance) {
+        console.log('Setting minimum balance:', accountType.minimum_balance);
+        setFormData(prev => ({
+          ...prev,
+          current_balance: parseFloat(accountType.minimum_balance)
+        }));
+      } else {
+        console.log('No minimum balance for this account type');
+      }
+    }
+    
+    // Handle balance change - validate in real-time
+    if (name === 'current_balance') {
+      const enteredBalance = parseFloat(value);
+      console.log('Entered balance:', enteredBalance);
+      console.log('Selected account type:', selectedAccountType);
+      
+      if (selectedAccountType && selectedAccountType.minimum_balance) {
+        const minBalance = parseFloat(selectedAccountType.minimum_balance);
+        console.log('Minimum balance required:', minBalance);
+        
+        if (enteredBalance < minBalance) {
+          console.log('Balance too low!');
+          setBalanceError(`Minimum balance required: LKR ${minBalance.toLocaleString()}`);
+        } else {
+          console.log('Balance is valid');
+          setBalanceError('');
+        }
+      } else if (selectedAccountType && selectedAccountType.acc_type_id === 'SAV001') {
+        // Fallback validation for Savings Account
+        const minBalance = 1000;
+        console.log('Fallback validation - SAV001 minimum balance:', minBalance);
+        
+        if (enteredBalance < minBalance) {
+          console.log('Fallback validation - Balance too low!');
+          setBalanceError(`Minimum balance required for Savings Account: LKR ${minBalance.toLocaleString()}`);
+        } else {
+          console.log('Fallback validation - Balance is valid');
+          setBalanceError('');
+        }
+      } else {
+        console.log('No minimum balance validation needed');
+        setBalanceError('');
+      }
+    }
   };
 
   return (
@@ -487,22 +596,43 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Initial Balance (LKR)
+          {selectedAccountType && (selectedAccountType.minimum_balance || selectedAccountType.acc_type_id === 'SAV001') && (
+            <span className="text-red-500 ml-1">
+              * (Min: LKR {(selectedAccountType.minimum_balance ? parseFloat(selectedAccountType.minimum_balance) : 1000).toLocaleString()})
+            </span>
+          )}
         </label>
         <input
           type="number"
           name="current_balance"
           value={formData.current_balance}
           onChange={handleChange}
-          min="0"
+          min={selectedAccountType?.minimum_balance || (selectedAccountType?.acc_type_id === 'SAV001' ? 1000 : 0)}
           step="0.01"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+            balanceError 
+              ? 'border-red-300 focus:ring-red-500' 
+              : 'border-gray-300 focus:ring-blue-500'
+          }`}
         />
+        {balanceError && (
+          <p className="text-red-500 text-sm mt-1">{balanceError}</p>
+        )}
+        {selectedAccountType && (selectedAccountType.minimum_balance || selectedAccountType.acc_type_id === 'SAV001') && (
+          <p className="text-gray-500 text-xs mt-1">
+            Minimum balance for {selectedAccountType.type_name}: LKR {(selectedAccountType.minimum_balance ? parseFloat(selectedAccountType.minimum_balance) : 1000).toLocaleString()}
+          </p>
+        )}
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">
         <button
           type="button"
-          onClick={() => setFormData({ customer_id: '', acc_type_id: '', branch_id: '', current_balance: 0 })}
+          onClick={() => {
+            setFormData({ customer_id: '', acc_type_id: '', branch_id: '', current_balance: 0 });
+            setSelectedAccountType(null);
+            setBalanceError('');
+          }}
           className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200"
         >
           Reset

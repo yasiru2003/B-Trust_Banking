@@ -19,7 +19,7 @@ const Dashboard = () => {
 
   // Fetch dashboard data based on user type
   const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['dashboard', userType],
+    queryKey: ['dashboard', userType, user?.employee_id, user?.branch_id],
     queryFn: async () => {
       const endpoints = {
         employee: ['/customers/stats', '/accounts/stats', '/transactions/stats'],
@@ -66,35 +66,37 @@ const Dashboard = () => {
   const getDashboardCards = () => {
     if (userType === 'employee') {
       const [customerStats, accountStats, transactionStats] = dashboardData || [];
+
+      const isAgent = user?.role === 'Agent';
       
       return [
         {
-          title: 'Total Customers',
+          title: isAgent ? 'My Customers' : 'Total Customers',
           value: customerStats?.data?.total_customers || 0,
           icon: Users,
           color: 'blue',
-          change: `+${customerStats?.data?.new_customers_30d || 0} this month`,
+          change: isAgent ? 'Assigned to you' : `+${customerStats?.data?.new_customers_30d || 0} this month`,
         },
         {
-          title: 'Active Accounts',
+          title: isAgent ? 'My Active Accounts' : 'Active Accounts',
           value: accountStats?.data?.active_accounts || 0,
           icon: CreditCard,
           color: 'green',
-          change: `+${accountStats?.data?.new_accounts_30d || 0} this month`,
+          change: isAgent ? 'Assigned customers only' : `+${accountStats?.data?.new_accounts_30d || 0} this month`,
         },
         {
-          title: 'Total Transactions',
+          title: isAgent ? 'My Transactions' : 'Total Transactions',
           value: transactionStats?.data?.total_transactions || 0,
           icon: ArrowLeftRight,
           color: 'purple',
-          change: `+${transactionStats?.data?.transactions_30d || 0} this month`,
+          change: isAgent ? 'You processed' : `+${transactionStats?.data?.transactions_30d || 0} this month`,
         },
         {
-          title: 'Total Balance',
-          value: `$${accountStats?.data?.total_balance?.toLocaleString() || 0}`,
+          title: isAgent ? 'My Total Balance' : 'Total Balance',
+          value: `$${(accountStats?.data?.total_balance || 0).toLocaleString()}`,
           icon: DollarSign,
           color: 'yellow',
-          change: 'Across all accounts',
+          change: isAgent ? 'Across your customers' : 'Across all accounts',
         },
       ];
     } else if (userType === 'customer') {
