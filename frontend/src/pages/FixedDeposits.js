@@ -9,7 +9,8 @@ import api from '../services/authService';
 import toast from 'react-hot-toast';
 
 const FixedDeposits = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission,user } = useAuth();
+  const isAgent = user?.role === 'Agent';
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
@@ -104,7 +105,7 @@ const FixedDeposits = () => {
           <h1 className="text-2xl font-bold text-gray-900">Fixed Deposits</h1>
           <p className="text-gray-600">Manage customer fixed deposits and investments</p>
         </div>
-        {hasPermission('create_transaction') && (
+        {isAgent && hasPermission('create_transaction') && (
           <button 
             onClick={() => setIsAddModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center"
@@ -242,6 +243,12 @@ const FixedDeposits = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Customer
                 </th>
+                {user?.role === 'Manager' && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Agent
+                  </th>
+                )}
+                
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
                 </th>
@@ -280,6 +287,13 @@ const FixedDeposits = () => {
                     <div className="text-sm text-gray-500">
                       {fd.customer_id}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {user?.role === 'Manager' && (
+                      <div className="text-sm text-gray-900">
+                        {fd.agent_name || 'Unknown'}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
