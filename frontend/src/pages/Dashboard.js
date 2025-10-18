@@ -22,7 +22,7 @@ const Dashboard = () => {
     queryKey: ['dashboard', userType, user?.employee_id, user?.branch_id],
     queryFn: async () => {
       const endpoints = {
-        employee: ['/customers/stats', '/accounts/stats', '/transactions/stats'],
+        employee: ['/customers/stats', '/accounts/stats', '/transactions/stats', '/transactions/recent'],
         customer: ['/accounts', '/transactions/customer'],
         user: ['/users/profile']
       };
@@ -147,13 +147,9 @@ const Dashboard = () => {
   };
 
   const getRecentActivity = () => {
-    if (userType === 'employee') {
-      return [
-        { type: 'customer', message: 'New customer registered', time: '2 hours ago', status: 'success' },
-        { type: 'transaction', message: 'Large transaction processed', time: '4 hours ago', status: 'warning' },
-        { type: 'fraud', message: 'Fraud alert triggered', time: '6 hours ago', status: 'danger' },
-        { type: 'account', message: 'New account opened', time: '8 hours ago', status: 'success' },
-      ];
+    if (userType === 'employee' && dashboardData && dashboardData[3]) {
+      // Use real data from API (index 3 is /transactions/recent)
+      return dashboardData[3].data || [];
     } else if (userType === 'customer') {
       return [
         { type: 'transaction', message: 'Deposit of $500 completed', time: '1 hour ago', status: 'success' },
