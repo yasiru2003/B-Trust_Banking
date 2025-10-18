@@ -80,12 +80,28 @@ const FDForm = ({ onSuccess, onCancel }) => {
       [name]: type === 'checkbox' ? checked : value
     }));
     
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+    // Real-time validation for principal amount
+    if (name === 'principal_amount') {
+      const amount = parseFloat(value);
+      if (value && (isNaN(amount) || amount < 25000)) {
+        setErrors(prev => ({
+          ...prev,
+          principal_amount: 'Minimum amount is LKR 25,000'
+        }));
+      } else {
+        setErrors(prev => ({
+          ...prev,
+          principal_amount: ''
+        }));
+      }
+    } else {
+      // Clear error when user starts typing for other fields
+      if (errors[name]) {
+        setErrors(prev => ({
+          ...prev,
+          [name]: ''
+        }));
+      }
     }
 
     // Reset source account when customer changes
@@ -106,8 +122,8 @@ const FDForm = ({ onSuccess, onCancel }) => {
     const newErrors = {};
     if (!formData.customer_id) newErrors.customer_id = 'Customer is required';
     if (!formData.fd_type_id) newErrors.fd_type_id = 'FD type is required';
-    if (!formData.principal_amount || formData.principal_amount < 1000) {
-      newErrors.principal_amount = 'Minimum amount is LKR 1,000';
+    if (!formData.principal_amount || formData.principal_amount < 25000) {
+      newErrors.principal_amount = 'Minimum amount is LKR 25,000';
     }
     if (!formData.source_account_number) newErrors.source_account_number = 'Source account is required';
 
@@ -197,19 +213,20 @@ const FDForm = ({ onSuccess, onCancel }) => {
             name="principal_amount"
             value={formData.principal_amount}
             onChange={handleInputChange}
-            min="1000"
+            min="25000"
             step="100"
             className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
               errors.principal_amount ? 'border-red-500' : 'border-gray-300'
             }`}
-            placeholder="Enter amount (minimum LKR 1,000)"
+            placeholder="Enter amount (minimum LKR 25,000)"
+            title="Minimum amount required is LKR 25,000"
           />
           {errors.principal_amount && (
             <p className="mt-1 text-sm text-red-600">{errors.principal_amount}</p>
           )}
           {selectedFDType && (
             <p className="mt-1 text-sm text-gray-500">
-              Min: LKR {selectedFDType.minimum_amount?.toLocaleString() || '1,000'} | 
+              Min: LKR {selectedFDType.minimum_amount?.toLocaleString() || '25,000'} | 
               Max: LKR {selectedFDType.maximum_amount?.toLocaleString() || 'No limit'}
             </p>
           )}
