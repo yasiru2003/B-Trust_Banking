@@ -126,6 +126,7 @@ router.get('/', hasPermission('view_all_transactions'), async (req, res) => {
   }
 });
 
+
 // GET /api/transactions/stats - Get transaction statistics
 router.get('/stats', hasPermission('view_all_transactions'), async (req, res) => {
   try {
@@ -203,6 +204,97 @@ router.get('/types', hasPermission('view_all_transactions'), async (req, res) =>
     });
   }
 });
+
+// GET /api/transactions/recent - Get recent activities for dashboard
+router.get('/recent', hasPermission('view_all_transactions'), async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+    
+    let query = `
+      SELECT 
+        'transaction' as activity_type,
+        CASE 
+          WHEN tt.type_name = 'Deposit' THEN 'Deposit processed'
+          WHEN tt.type_name = 'Withdraw' THEN 'Withdrawal processed'
+          ELSE 'Transaction processed'
+        END as message,
+        t.date as activity_date,
+        CASE 
+          WHEN t.status = true THEN 'success'
+          ELSE 'danger'
+        END as status,
+        t.amount,
+        tt.type_name as transaction_type,
+        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+        a.account_number
+      FROM transaction t
+      LEFT JOIN transaction_type tt ON t.transaction_type_id = tt.transaction_type_id
+      LEFT JOIN account a ON t.account_number = a.account_number
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      LEFT JOIN employee_auth e ON t.agent_id = e.employee_id
+    `;
+    
+    const conditions = [];
+    const params = [];
+    let paramCount = 0;
+
+    // Role-based filtering
+    if (req.user.role === 'Agent') {
+      conditions.push(`TRIM(t.agent_id) = $${++paramCount}`);
+      params.push(req.user.employee_id.trim());
+    } else if (req.user.role === 'Manager') {
+      conditions.push(`e.branch_id = $${++paramCount}`);
+      params.push(req.user.branch_id);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY t.date DESC LIMIT $${++paramCount}`;
+    params.push(limit);
+
+    const result = await db.query(query, params);
+    
+    // Format the response
+    const activities = result.rows.map(row => ({
+      type: row.activity_type,
+      message: `${row.message} - ${row.customer_name} (LKR ${parseFloat(row.amount).toLocaleString()})`,
+      time: formatTimeAgo(row.activity_date),
+      status: row.status,
+      details: {
+        amount: row.amount,
+        transaction_type: row.transaction_type,
+        customer_name: row.customer_name,
+        account_number: row.account_number
+      }
+    }));
+
+    res.json({
+      success: true,
+      data: activities
+    });
+  } catch (error) {
+    console.error('Get recent activities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent activities'
+    });
+  }
+});
+
+// Helper function to format time ago
+function formatTimeAgo(date) {
+  const now = new Date();
+  const activityDate = new Date(date);
+  const diffInSeconds = Math.floor((now - activityDate) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  return `${Math.floor(diffInSeconds / 2592000)} months ago`;
+}
 
 // GET /api/transactions/:id - Get transaction by ID
 router.get('/:id', hasPermission('view_all_transactions'), async (req, res) => {
