@@ -34,7 +34,7 @@ router.get('/types', optionalAuth, async (req, res) => {
       fd_type_id: fdType.fd_type_id,
       type_name: `${fdType.duration_months} Month FD`,
       description: `${fdType.duration_months} months fixed deposit at ${fdType.interest_rate}% interest`,
-      minimum_amount: 1000.00,
+      minimum_amount: 25000.00,
       maximum_amount: 10000000.00,
       interest_rate: fdType.interest_rate,
       tenure_months: fdType.duration_months,
@@ -322,11 +322,11 @@ router.post('/', verifyToken, requireAgent, async (req, res) => {
     const fdType = fdTypeResult.rows[0];
     
     // Validate principal amount
-    if (value.principal_amount < 1000) {
+    if (value.principal_amount < 25000) {
       await client.query('ROLLBACK');
       return res.status(400).json({
         success: false,
-        message: 'Minimum amount for FD is LKR 1,000'
+        message: 'Minimum amount for FD is LKR 25,000'
       });
     }
 
