@@ -55,7 +55,7 @@ const Accounts = () => {
           success: true,
           data: [
             { acc_type_id: 'SAV001', type_name: 'Savings Account' },
-            { acc_type_id: 'CUR001', type_name: 'Current Account' }
+            { acc_type_id: 'CUR001', type_name: 'Joint Account' }
           ]
         };
       }
