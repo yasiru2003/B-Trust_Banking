@@ -10,7 +10,8 @@ const accountSchema = Joi.object({
   customer_id: Joi.string().required(),
   acc_type_id: Joi.string().required(),
   branch_id: Joi.number().integer().optional(),
-  current_balance: Joi.number().min(0).optional()
+  current_balance: Joi.number().min(0).optional(),
+  joint_customers: Joi.array().items(Joi.string()).optional()
 });
 
 // GET /api/accounts - Get all accounts
@@ -196,18 +197,22 @@ router.post('/', verifyToken, requireAgent, async (req, res) => {
     // Start transaction
     client = await db.beginTransaction();
 
-    // Check if customer exists and is assigned to this agent
-    const customerCheck = await client.query(
-      'SELECT customer_id FROM customer WHERE customer_id = $1 AND TRIM(agent_id) = $2',
-      [value.customer_id.trim(), req.user.employee_id.trim()]
-    );
+    // Check if customer(s) exist and are assigned to this agent
+    const customersToCheck = value.joint_customers || [value.customer_id];
     
-    if (customerCheck.rows.length === 0) {
-      await db.rollbackTransaction(client);
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. You can only create accounts for customers assigned to you.'
-      });
+    for (const customerId of customersToCheck) {
+      const customerCheck = await client.query(
+        'SELECT customer_id FROM customer WHERE customer_id = $1 AND TRIM(agent_id) = $2',
+        [customerId.trim(), req.user.employee_id.trim()]
+      );
+      
+      if (customerCheck.rows.length === 0) {
+        await db.rollbackTransaction(client);
+        return res.status(403).json({
+          success: false,
+          message: `Access denied. Customer ${customerId} is not assigned to you.`
+        });
+      }
     }
 
     // For agents, automatically set branch_id to their assigned branch
@@ -218,20 +223,22 @@ router.post('/', verifyToken, requireAgent, async (req, res) => {
       value.branch_id = req.user.branch_id;
     }
 
-    // Check if customer already has an account of this type
-    const existingAccount = await client.query(
-      `SELECT account_number 
-       FROM account
-       WHERE customer_id = $1 AND acc_type_id = $2`,
-      [value.customer_id.trim(), value.acc_type_id]
-    );
-    
-    if (existingAccount.rows.length > 0) {
-      await db.rollbackTransaction(client);
-      return res.status(409).json({
-        success: false,
-        message: 'Customer already has an account of this type'
-      });
+    // Check if any customer already has an account of this type
+    for (const customerId of customersToCheck) {
+      const existingAccount = await client.query(
+        `SELECT account_number 
+         FROM account
+         WHERE customer_id = $1 AND acc_type_id = $2`,
+        [customerId.trim(), value.acc_type_id]
+      );
+      
+      if (existingAccount.rows.length > 0) {
+        await db.rollbackTransaction(client);
+        return res.status(409).json({
+          success: false,
+          message: `Customer ${customerId} already has an account of this type`
+        });
+      }
     }
 
     // Generate account number
@@ -258,34 +265,40 @@ router.post('/', verifyToken, requireAgent, async (req, res) => {
     
     await db.commitTransaction(client);
     
-    // Send SMS notification to customer about account creation
+    // Send SMS notification to all customers about account creation
     try {
-      const customerResult = await db.query(
-        'SELECT first_name, last_name, phone_number FROM customer WHERE customer_id = $1',
-        [value.customer_id.trim()]
-      );
-      
       const accountTypeResult = await db.query(
         'SELECT type_name FROM account_type WHERE acc_type_id = $1',
         [value.acc_type_id]
       );
       
-      if (customerResult.rows.length > 0 && customerResult.rows[0].phone_number) {
-        const customer = customerResult.rows[0];
-        const accountType = accountTypeResult.rows[0]?.type_name || 'Bank';
-        const accountDetails = {
-          accountNumber: account_number,
-          accountType: accountType,
-          initialBalance: value.current_balance || 0,
-          customerName: `${customer.first_name} ${customer.last_name}`
-        };
-        
-        await smsService.sendAccountCreatedNotificationDetailed(
-          customer.phone_number,
-          accountDetails
+      const accountType = accountTypeResult.rows[0]?.type_name || 'Bank';
+      
+      // Send SMS to all customers involved in the account
+      for (const customerId of customersToCheck) {
+        const customerResult = await db.query(
+          'SELECT first_name, last_name, phone_number FROM customer WHERE customer_id = $1',
+          [customerId.trim()]
         );
         
-        console.log(`📱 Account creation SMS sent to ${customer.phone_number} for account ${account_number}`);
+        if (customerResult.rows.length > 0 && customerResult.rows[0].phone_number) {
+          const customer = customerResult.rows[0];
+          const accountDetails = {
+            accountNumber: account_number,
+            accountType: accountType,
+            initialBalance: value.current_balance || 0,
+            customerName: `${customer.first_name} ${customer.last_name}`,
+            isJointAccount: value.joint_customers ? true : false,
+            jointCustomersCount: value.joint_customers ? value.joint_customers.length : 1
+          };
+          
+          await smsService.sendAccountCreatedNotificationDetailed(
+            customer.phone_number,
+            accountDetails
+          );
+          
+          console.log(`📱 Account creation SMS sent to ${customer.phone_number} for account ${account_number}`);
+        }
       }
     } catch (smsError) {
       console.error('Account creation SMS notification failed:', smsError);
