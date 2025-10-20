@@ -412,10 +412,12 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
     customer_id: '',
     acc_type_id: '',
     branch_id: '',
-    current_balance: 0
+    current_balance: 0,
+    joint_customers: []
   });
   const [selectedAccountType, setSelectedAccountType] = useState(null);
   const [balanceError, setBalanceError] = useState('');
+  const [isJointAccount, setIsJointAccount] = useState(false);
 
   // Get user info from AuthContext
   const { user } = useAuth();
@@ -553,6 +555,59 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
           ))}
         </select>
       </div>
+
+      {/* Joint Account Toggle */}
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="isJointAccount"
+          checked={isJointAccount}
+          onChange={(e) => setIsJointAccount(e.target.checked)}
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+        <label htmlFor="isJointAccount" className="text-sm font-medium text-gray-700">
+          Joint Account (Multiple Customers)
+        </label>
+      </div>
+
+      {/* Joint Customers Selection */}
+      {isJointAccount && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Additional Joint Customers
+          </label>
+          <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-md p-2">
+            {customers.filter(c => c.customer_id !== formData.customer_id).map(customer => (
+              <label key={customer.customer_id} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.joint_customers.includes(customer.customer_id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setFormData(prev => ({
+                        ...prev,
+                        joint_customers: [...prev.joint_customers, customer.customer_id]
+                      }));
+                    } else {
+                      setFormData(prev => ({
+                        ...prev,
+                        joint_customers: prev.joint_customers.filter(id => id !== customer.customer_id)
+                      }));
+                    }
+                  }}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">
+                  {customer.first_name} {customer.last_name} ({customer.customer_id})
+                </span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Select additional customers for joint account ownership
+          </p>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">

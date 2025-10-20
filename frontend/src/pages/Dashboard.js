@@ -276,15 +276,24 @@ const Dashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button className="btn btn-primary">
+            <button 
+              onClick={() => window.location.href = '/customers'}
+              className="btn btn-primary"
+            >
               <Users className="h-4 w-4 mr-2" />
               Add Customer
             </button>
-            <button className="btn btn-secondary">
+            <button 
+              onClick={() => window.location.href = '/accounts'}
+              className="btn btn-secondary"
+            >
               <CreditCard className="h-4 w-4 mr-2" />
               Open Account
             </button>
-            <button className="btn btn-outline">
+            <button 
+              onClick={() => window.location.href = '/transactions'}
+              className="btn btn-outline"
+            >
               <ArrowLeftRight className="h-4 w-4 mr-2" />
               Process Transaction
             </button>
