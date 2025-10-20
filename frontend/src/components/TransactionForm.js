@@ -11,7 +11,6 @@ const TransactionForm = ({ onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [requiresOTP, setRequiresOTP] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpCode, setOtpCode] = useState('');
 
@@ -238,10 +237,6 @@ const TransactionForm = ({ onClose, onSuccess }) => {
     setSelectedAccount(null);
   };
 
-  const handleAccountChange = (accountNumber) => {
-    setValue('account_number', accountNumber);
-    setSelectedAccount(accounts.find(a => a.account_number === accountNumber));
-  };
 
   const sendOTP = async () => {
     try {

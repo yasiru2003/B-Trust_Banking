@@ -13,10 +13,7 @@ import {
   Eye,
   Trash2,
   RefreshCw,
-  Users,
-  Activity,
-  Lock,
-  Unlock
+  Activity
 } from 'lucide-react';
 import api from '../services/authService';
 import LoadingSpinner from './LoadingSpinner';
@@ -27,8 +24,6 @@ const SessionManagement = () => {
   const [selectedTab, setSelectedTab] = useState('sessions');
   const [selectedSession, setSelectedSession] = useState(null);
   const [showSessionDetails, setShowSessionDetails] = useState(false);
-  const [showDeviceModal, setShowDeviceModal] = useState(false);
-  const [showSecurityModal, setShowSecurityModal] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch sessions data
@@ -78,23 +73,6 @@ const SessionManagement = () => {
     },
   });
 
-  // Terminate all sessions mutation
-  const terminateAllSessionsMutation = useMutation({
-    mutationFn: async (userId) => {
-      const response = await api.delete('/sessions/terminate-all', {
-        data: { reason: 'admin_action' }
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      toast.success('All sessions terminated successfully');
-      queryClient.invalidateQueries(['admin-sessions']);
-    },
-    onError: (error) => {
-      toast.error('Failed to terminate all sessions');
-      console.error('Terminate all sessions error:', error);
-    },
-  });
 
   // Cleanup expired sessions mutation
   const cleanupSessionsMutation = useMutation({

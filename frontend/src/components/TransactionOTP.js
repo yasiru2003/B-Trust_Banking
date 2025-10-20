@@ -13,7 +13,6 @@ const TransactionOTP = ({
   const [step, setStep] = useState('check'); // 'check', 'send', 'verify'
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
 
   const sendOTPMutation = useMutation({
     mutationFn: async (data) => {
@@ -21,7 +20,6 @@ const TransactionOTP = ({
       return response.data;
     },
     onSuccess: () => {
-      setOtpSent(true);
       setStep('verify');
     },
     onError: (error) => {
@@ -77,7 +75,6 @@ const TransactionOTP = ({
 
   const handleResendOTP = () => {
     setCode('');
-    setOtpSent(false);
     setStep('send');
   };
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Filter, X } from 'lucide-react';
+import { Filter, X } from 'lucide-react';
 
 const ReportFilters = ({ 
   filters, 
