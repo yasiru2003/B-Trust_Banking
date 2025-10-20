@@ -6,7 +6,7 @@ import {
   ArrowLeftRight, 
   Shield, 
   TrendingUp, 
-  DollarSign,
+  Banknote,
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
@@ -145,7 +145,7 @@ const Dashboard = () => {
         {
           title: isAgent ? 'My Total Balance' : 'Total Balance',
           value: `LKR ${(accountStats?.data?.total_balance || 0).toLocaleString()}`,
-          icon: DollarSign,
+          icon: Banknote,
           color: 'yellow',
           change: isAgent ? 'Across your customers' : 'Across all accounts',
         },
@@ -165,7 +165,7 @@ const Dashboard = () => {
         {
           title: 'Total Balance',
           value: `LKR ${totalBalance.toLocaleString()}`,
-          icon: DollarSign,
+          icon: Banknote,
           color: 'green',
           change: 'Across all accounts',
         },
