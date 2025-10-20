@@ -353,5 +353,112 @@ router.get('/customer/:customerId', verifyToken, async (req, res) => {
   }
 });
 
+// PUT /api/accounts/:accountNumber/freeze - Freeze an account
+router.put('/:accountNumber/freeze', verifyToken, requireAgent, async (req, res) => {
+  try {
+    const { accountNumber } = req.params;
+    
+    // Check if account exists and is assigned to this agent
+    const accountCheck = await db.query(`
+      SELECT a.*, c.first_name, c.last_name 
+      FROM account a
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      WHERE a.account_number = $1 AND TRIM(c.agent_id) = $2
+    `, [accountNumber, req.user.employee_id.trim()]);
+    
+    if (accountCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found or not assigned to you'
+      });
+    }
+    
+    const account = accountCheck.rows[0];
+    
+    // Check if account is already frozen
+    if (account.is_frozen) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account is already frozen'
+      });
+    }
+    
+    // Freeze the account
+    await db.query(
+      'UPDATE account SET is_frozen = true, frozen_at = CURRENT_TIMESTAMP WHERE account_number = $1',
+      [accountNumber]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Account frozen successfully',
+      data: {
+        account_number: accountNumber,
+        customer_name: `${account.first_name} ${account.last_name}`,
+        frozen_at: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Freeze account error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to freeze account'
+    });
+  }
+});
+
+// PUT /api/accounts/:accountNumber/unfreeze - Unfreeze an account
+router.put('/:accountNumber/unfreeze', verifyToken, requireAgent, async (req, res) => {
+  try {
+    const { accountNumber } = req.params;
+    
+    // Check if account exists and is assigned to this agent
+    const accountCheck = await db.query(`
+      SELECT a.*, c.first_name, c.last_name 
+      FROM account a
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      WHERE a.account_number = $1 AND TRIM(c.agent_id) = $2
+    `, [accountNumber, req.user.employee_id.trim()]);
+    
+    if (accountCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found or not assigned to you'
+      });
+    }
+    
+    const account = accountCheck.rows[0];
+    
+    // Check if account is not frozen
+    if (!account.is_frozen) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account is not frozen'
+      });
+    }
+    
+    // Unfreeze the account
+    await db.query(
+      'UPDATE account SET is_frozen = false, frozen_at = NULL WHERE account_number = $1',
+      [accountNumber]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Account unfrozen successfully',
+      data: {
+        account_number: accountNumber,
+        customer_name: `${account.first_name} ${account.last_name}`,
+        unfrozen_at: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Unfreeze account error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unfreeze account'
+    });
+  }
+});
 
 module.exports = router;

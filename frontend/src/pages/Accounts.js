@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CreditCard, Plus, Search, Filter, Eye, DollarSign } from 'lucide-react';
+import { CreditCard, Plus, Search, Filter, Eye, DollarSign, Snowflake, Sun } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -136,8 +136,52 @@ const Accounts = () => {
       }
   });
 
+  // Freeze account mutation
+  const freezeAccountMutation = useMutation({
+    mutationFn: async (accountNumber) => {
+      const response = await api.put(`/accounts/${accountNumber}/freeze`);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || 'Account frozen successfully!');
+      queryClient.invalidateQueries('accounts');
+    },
+    onError: (error) => {
+      const message = error.response?.data?.message || 'Failed to freeze account';
+      toast.error(message);
+    }
+  });
+
+  // Unfreeze account mutation
+  const unfreezeAccountMutation = useMutation({
+    mutationFn: async (accountNumber) => {
+      const response = await api.put(`/accounts/${accountNumber}/unfreeze`);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || 'Account unfrozen successfully!');
+      queryClient.invalidateQueries('accounts');
+    },
+    onError: (error) => {
+      const message = error.response?.data?.message || 'Failed to unfreeze account';
+      toast.error(message);
+    }
+  });
+
   const handleCreateAccount = (formData) => {
     createAccountMutation.mutate(formData);
+  };
+
+  const handleFreezeAccount = (accountNumber) => {
+    if (window.confirm('Are you sure you want to freeze this account? This will prevent all transactions.')) {
+      freezeAccountMutation.mutate(accountNumber);
+    }
+  };
+
+  const handleUnfreezeAccount = (accountNumber) => {
+    if (window.confirm('Are you sure you want to unfreeze this account? This will allow transactions to resume.')) {
+      unfreezeAccountMutation.mutate(accountNumber);
+    }
   };
 
   const filteredAccounts = accountsData?.data?.filter(account => {
@@ -307,6 +351,9 @@ const Accounts = () => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Freeze Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     More Details
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -360,12 +407,21 @@ const Accounts = () => {
                         {account.status ? 'Active' : 'Inactive'}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        account.is_frozen 
+                          ? 'bg-red-100 text-red-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {account.is_frozen ? 'Frozen' : 'Normal'}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button 
                         onClick={() => {
                           // Show account details in a modal or expandable row
                           console.log('More details for account:', account);
-                          alert(`Account Details:\n\nAccount Number: ${account.account_number}\nCustomer: ${account.customer_name}\nType: ${account.account_type}\nBalance: LKR ${parseFloat(account.current_balance || 0).toLocaleString()}\nStatus: ${account.status ? 'Active' : 'Inactive'}\nOpening Date: ${account.opening_date || 'N/A'}`);
+                          alert(`Account Details:\n\nAccount Number: ${account.account_number}\nCustomer: ${account.customer_name}\nType: ${account.account_type}\nBalance: LKR ${parseFloat(account.current_balance || 0).toLocaleString()}\nStatus: ${account.status ? 'Active' : 'Inactive'}\nFreeze Status: ${account.is_frozen ? 'Frozen' : 'Normal'}\nOpening Date: ${account.opening_date || 'N/A'}`);
                         }}
                         className="text-green-600 hover:text-green-900 mr-3"
                         title="View More Details"
@@ -374,9 +430,34 @@ const Accounts = () => {
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-900 mr-3">
-                        <Eye className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button className="text-blue-600 hover:text-blue-900" title="View Account">
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        {isAgent && (
+                          <>
+                            {!account.is_frozen ? (
+                              <button 
+                                onClick={() => handleFreezeAccount(account.account_number)}
+                                disabled={freezeAccountMutation.isLoading}
+                                className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                                title="Freeze Account"
+                              >
+                                <Snowflake className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={() => handleUnfreezeAccount(account.account_number)}
+                                disabled={unfreezeAccountMutation.isLoading}
+                                className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                                title="Unfreeze Account"
+                              >
+                                <Sun className="h-4 w-4" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
