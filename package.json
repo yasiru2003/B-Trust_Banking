@@ -6,8 +6,8 @@
   "scripts": {
     "start": "cd backend && npm start",
     "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm start\"",
-    "build": "npm install && cd backend && npm install && cd ../frontend && npm install && npm run build:optimized",
-    "build:optimized": "NODE_OPTIONS='--max-old-space-size=2048' react-scripts build",
+    "build": "npm install && cd backend && npm install && cd ../frontend && npm install && cd .. && NODE_OPTIONS='--max-old-space-size=1536' npm run build:frontend",
+    "build:frontend": "cd frontend && NODE_OPTIONS='--max-old-space-size=1536' npm run build",
     "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "postinstall": "cd backend && npm install && cd ../frontend && npm install"
   },
