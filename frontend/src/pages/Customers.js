@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -53,9 +53,34 @@ const Customers = () => {
     }
   );
 
+  // Update KYC status mutation
+  const updateKycMutation = useMutation({
+    mutationFn: async ({ customerId, kycStatus }) => {
+      const response = await api.patch(`/customers/${customerId}/kyc`, { kyc_status: kycStatus });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries('customers');
+      toast.success(data.message);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to update KYC status');
+    }
+  });
+
   const handleDelete = (customerId) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       deleteCustomerMutation.mutate(customerId);
+    }
+  };
+
+  const handleKycUpdate = (customerId, kycStatus) => {
+    const action = kycStatus ? 'approve' : 'reject';
+    const customerName = customers.find(c => c.customer_id === customerId);
+    const name = customerName ? `${customerName.first_name} ${customerName.last_name}` : 'this customer';
+    
+    if (window.confirm(`Are you sure you want to ${action} KYC for ${name}?`)) {
+      updateKycMutation.mutate({ customerId, kycStatus });
     }
   };
 
@@ -148,7 +173,7 @@ const Customers = () => {
       </div>
 
       {/* Customers Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <LoadingSpinner size="xl" />
@@ -181,14 +206,14 @@ const Customers = () => {
                               photoUrl={customer.photo}
                               firstName={customer.first_name}
                               lastName={customer.last_name}
-                              className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+                              className="h-10 w-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
                             />
                           </div>
                           <div>
                             <div className="font-medium">
                               {customer.first_name} {customer.last_name}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
                               {customer.nic_number}
                             </div>
                           </div>
@@ -211,14 +236,37 @@ const Customers = () => {
                         )}
                       </td>
                       <td className="table-cell">
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-1">
                           <button className="btn btn-ghost btn-sm">
                             <Eye className="h-4 w-4" />
                           </button>
-                          {hasPermission('update_customer') && (
-                            <button className="btn btn-ghost btn-sm">
-                              <Edit className="h-4 w-4" />
-                            </button>
+                          {hasPermission('update_customer_info') && (
+                            <>
+                              <button className="btn btn-ghost btn-sm">
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              {/* KYC Status Buttons */}
+                              {!customer.kyc_status && (
+                                <button
+                                  onClick={() => handleKycUpdate(customer.customer_id, true)}
+                                  disabled={updateKycMutation.isPending}
+                                  className="btn btn-success btn-sm"
+                                  title="Approve KYC"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                              {customer.kyc_status && (
+                                <button
+                                  onClick={() => handleKycUpdate(customer.customer_id, false)}
+                                  disabled={updateKycMutation.isPending}
+                                  className="btn btn-warning btn-sm"
+                                  title="Reject KYC"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </>
                           )}
                           {hasPermission('delete_customer') && (
                             <button

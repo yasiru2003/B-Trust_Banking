@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Users, 
@@ -6,73 +6,97 @@ import {
   ArrowLeftRight, 
   Shield, 
   TrendingUp, 
-  DollarSign,
+  Banknote,
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Modal from '../components/Modal';
+import CustomerForm from '../components/CustomerForm';
+import TransactionForm from '../components/TransactionForm';
+import AccountForm from '../components/AccountForm';
 import api from '../services/authService';
 
 const Dashboard = () => {
   const { userType, user } = useAuth();
-
-  // Debug logging
-  console.log('Dashboard - userType:', userType);
-  console.log('Dashboard - user:', user);
-  console.log('Dashboard - user role:', user?.role);
-  console.log('Dashboard - Is Admin?:', userType === 'employee' && user?.role === 'Admin');
+  
+  // Modal states
+  const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false);
+  const [isOpenAccountModalOpen, setIsOpenAccountModalOpen] = useState(false);
+  const [isProcessTransactionModalOpen, setIsProcessTransactionModalOpen] = useState(false);
 
   // Fetch dashboard data based on user type
-  const { data: dashboardData, isLoading, error } = useQuery({
+  const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['dashboard', userType, user?.employee_id, user?.branch_id],
     queryFn: async () => {
-      // For Admin users, fetch from the unified admin endpoint
-      if (userType === 'employee' && user?.role === 'Admin') {
-        console.log('Fetching admin dashboard stats...');
-        const statsResponse = await api.get('/admin/dashboard/stats');
-        console.log('Admin stats response:', statsResponse.data);
-        return { stats: statsResponse.data.data };
-      }
+      const endpoints = {
+        employee: ['/customers/stats', '/accounts/stats', '/transactions/stats', '/transactions/recent'],
+        customer: ['/accounts', '/transactions/customer'],
+        user: ['/users/profile']
+      };
 
-      // For other employee types (Agent, Manager)
-      if (userType === 'employee') {
-        const endpoints = ['/customers/stats', '/accounts/stats', '/transactions/stats'];
-        const promises = endpoints.map(endpoint =>
-          api.get(endpoint).then(res => res.data)
-        );
-        const results = await Promise.all(promises);
-        return results;
-      }
+      const promises = (endpoints[userType] || []).map(endpoint => 
+        api.get(endpoint).then(res => res.data)
+      );
 
-      // For customers
-      if (userType === 'customer') {
-        const endpoints = ['/accounts', '/transactions/customer'];
-        const promises = endpoints.map(endpoint =>
-          api.get(endpoint).then(res => res.data)
-        );
-        const results = await Promise.all(promises);
-        return results;
-      }
-
-      return null;
+      const results = await Promise.all(promises);
+      return results;
     },
     enabled: !!userType,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Fetch recent activity for Admin users
-  const { data: recentActivityData } = useQuery({
-    queryKey: ['recent-activity'],
+  // Fetch data needed for AccountForm
+  const { data: customersData } = useQuery({
+    queryKey: 'customers-for-account',
     queryFn: async () => {
-      const response = await api.get('/admin/dashboard/recent-activity');
-      return response.data.activities;
+      const response = await api.get('/customers?limit=100');
+      return response.data;
     },
-    enabled: userType === 'employee' && user?.role === 'Admin',
-    refetchInterval: 30000, // Refetch every 30 seconds
+    enabled: isOpenAccountModalOpen
   });
 
-  // Helper functions - defined early to avoid hoisting issues
+  const { data: accountTypesData } = useQuery({
+    queryKey: 'account-types',
+    queryFn: async () => {
+      const response = await api.get('/accounts/types');
+      return response.data;
+    },
+    enabled: isOpenAccountModalOpen
+  });
+
+  const { data: branchesData } = useQuery({
+    queryKey: 'branches',
+    queryFn: async () => {
+      const response = await api.get('/branches');
+      return response.data;
+    },
+    enabled: isOpenAccountModalOpen
+  });
+
+  // Handler for creating accounts
+  const handleCreateAccount = async (accountData) => {
+    try {
+      const response = await api.post('/accounts', accountData);
+      if (response.data.success) {
+        setIsOpenAccountModalOpen(false);
+        // Refresh dashboard data
+        window.location.reload(); // Simple refresh for now
+      }
+    } catch (error) {
+      console.error('Create account error:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner size="xl" />
+      </div>
+    );
+  }
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good Morning';
@@ -90,118 +114,8 @@ const Dashboard = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        {/* Welcome Section Skeleton */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-          </div>
-        </div>
-
-        {/* Stats Cards Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-lg shadow p-6">
-              <div className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Recent Activity Skeleton */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="h-6 bg-gray-200 rounded w-1/4 animate-pulse"></div>
-          </div>
-          <div className="p-6 space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex items-center space-x-4 animate-pulse">
-                <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {getGreeting()}, {getUserDisplayName()}!
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Welcome to your B-Trust Banking dashboard.
-          </p>
-        </div>
-
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <div className="flex items-center space-x-3">
-            <AlertTriangle className="h-6 w-6 text-red-600" />
-            <div>
-              <h3 className="text-lg font-semibold text-red-900">Failed to load dashboard data</h3>
-              <p className="text-sm text-red-700 mt-1">
-                We couldn't fetch your dashboard statistics. Please try refreshing the page.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const getDashboardCards = () => {
     if (userType === 'employee') {
-      // Admin users get data from the unified stats endpoint
-      if (user?.role === 'Admin' && dashboardData?.stats) {
-        const stats = dashboardData.stats;
-
-        return [
-          {
-            title: 'Total Customers',
-            value: stats.customers?.total?.toLocaleString() || 0,
-            icon: Users,
-            color: 'blue',
-            change: `+${stats.customers?.newThisMonth || 0} this month`,
-          },
-          {
-            title: 'Active Accounts',
-            value: stats.accounts?.active?.toLocaleString() || 0,
-            icon: CreditCard,
-            color: 'green',
-            change: `+${stats.accounts?.newThisMonth || 0} this month`,
-          },
-          {
-            title: 'Total Transactions',
-            value: stats.transactions?.total?.toLocaleString() || 0,
-            icon: ArrowLeftRight,
-            color: 'purple',
-            change: `+${stats.transactions?.thisMonth || 0} this month`,
-          },
-          {
-            title: 'Total Balance',
-            value: `$${stats.balance?.total?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`,
-            icon: DollarSign,
-            color: 'yellow',
-            change: 'Across all accounts',
-          },
-        ];
-      }
-
-      // Other employees (Agent, Manager) use the old format
       const [customerStats, accountStats, transactionStats] = dashboardData || [];
 
       const isAgent = user?.role === 'Agent';
@@ -209,29 +123,29 @@ const Dashboard = () => {
       return [
         {
           title: isAgent ? 'My Customers' : 'Total Customers',
-          value: customerStats?.data?.total_customers?.toLocaleString() || 0,
+          value: customerStats?.data?.total_customers || 0,
           icon: Users,
           color: 'blue',
           change: isAgent ? 'Assigned to you' : `+${customerStats?.data?.new_customers_30d || 0} this month`,
         },
         {
           title: isAgent ? 'My Active Accounts' : 'Active Accounts',
-          value: accountStats?.data?.active_accounts?.toLocaleString() || 0,
+          value: accountStats?.data?.active_accounts || 0,
           icon: CreditCard,
           color: 'green',
           change: isAgent ? 'Assigned customers only' : `+${accountStats?.data?.new_accounts_30d || 0} this month`,
         },
         {
           title: isAgent ? 'My Transactions' : 'Total Transactions',
-          value: transactionStats?.data?.total_transactions?.toLocaleString() || 0,
+          value: transactionStats?.data?.total_transactions || 0,
           icon: ArrowLeftRight,
           color: 'purple',
           change: isAgent ? 'You processed' : `+${transactionStats?.data?.transactions_30d || 0} this month`,
         },
         {
           title: isAgent ? 'My Total Balance' : 'Total Balance',
-          value: `$${accountStats?.data?.total_balance?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`,
-          icon: DollarSign,
+          value: `LKR ${(accountStats?.data?.total_balance || 0).toLocaleString()}`,
+          icon: Banknote,
           color: 'yellow',
           change: isAgent ? 'Across your customers' : 'Across all accounts',
         },
@@ -250,8 +164,8 @@ const Dashboard = () => {
         },
         {
           title: 'Total Balance',
-          value: `$${totalBalance.toLocaleString()}`,
-          icon: DollarSign,
+          value: `LKR ${totalBalance.toLocaleString()}`,
+          icon: Banknote,
           color: 'green',
           change: 'Across all accounts',
         },
@@ -283,67 +197,14 @@ const Dashboard = () => {
     }
   };
 
-  // Helper function to format timestamp as relative time
-  const formatRelativeTime = (timestamp) => {
-    if (!timestamp) return 'Unknown time';
-
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString();
-  };
-
   const getRecentActivity = () => {
-    if (userType === 'employee') {
-      // Admin users get real activity data from the backend
-      if (user?.role === 'Admin' && recentActivityData && recentActivityData.length > 0) {
-        return recentActivityData.map(activity => {
-          let activityType = 'customer';
-          let status = 'success';
-
-          // Map activity types to UI types and statuses
-          if (activity.type === 'customer_registered') {
-            activityType = 'customer';
-            status = 'success';
-          } else if (activity.type === 'transaction_processed') {
-            activityType = 'transaction';
-            status = 'success';
-          } else if (activity.type === 'account_opened') {
-            activityType = 'account';
-            status = 'success';
-          } else if (activity.type === 'fraud_alert') {
-            activityType = 'fraud';
-            status = 'danger';
-          }
-
-          return {
-            type: activityType,
-            message: activity.description,
-            time: formatRelativeTime(activity.timestamp),
-            status: status
-          };
-        });
-      }
-
-      // Fallback for non-Admin employees (placeholder data)
-      return [
-        { type: 'customer', message: 'New customer registered', time: '2 hours ago', status: 'success' },
-        { type: 'transaction', message: 'Large transaction processed', time: '4 hours ago', status: 'warning' },
-        { type: 'fraud', message: 'Fraud alert triggered', time: '6 hours ago', status: 'danger' },
-        { type: 'account', message: 'New account opened', time: '8 hours ago', status: 'success' },
-      ];
+    if (userType === 'employee' && dashboardData && dashboardData[3]) {
+      // Use real data from API (index 3 is /transactions/recent)
+      return dashboardData[3].data || [];
     } else if (userType === 'customer') {
       return [
-        { type: 'transaction', message: 'Deposit of $500 completed', time: '1 hour ago', status: 'success' },
-        { type: 'transaction', message: 'Withdrawal of $200 completed', time: '3 hours ago', status: 'success' },
+        { type: 'transaction', message: 'Deposit of LKR 500 completed', time: '1 hour ago', status: 'success' },
+        { type: 'transaction', message: 'Withdrawal of LKR 200 completed', time: '3 hours ago', status: 'success' },
         { type: 'account', message: 'Account statement generated', time: '1 day ago', status: 'info' },
         { type: 'security', message: 'Login from new device', time: '2 days ago', status: 'warning' },
       ];
@@ -381,11 +242,11 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {getGreeting()}, {getUserDisplayName()}!
         </h1>
-        <p className="text-gray-600 mt-1">
+        <p className="text-gray-600 dark:text-gray-300 mt-1">
           Welcome to your B-Trust Banking dashboard. Here's what's happening today.
         </p>
       </div>
@@ -395,12 +256,12 @@ const Dashboard = () => {
         {cards.map((card, index) => {
           const Icon = card.icon;
           return (
-            <div key={index} className="bg-white rounded-lg shadow p-6">
+            <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
-                  <p className="text-xs text-gray-500 mt-1">{card.change}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{card.title}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{card.value}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{card.change}</p>
                 </div>
                 <div className={`p-3 rounded-full ${getCardColor(card.color)}`}>
                   <Icon className="h-6 w-6 text-white" />
@@ -412,9 +273,9 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
         </div>
         <div className="p-6">
           <div className="space-y-4">
@@ -429,8 +290,8 @@ const Dashboard = () => {
                   {activity.type === 'security' && <AlertTriangle className="h-4 w-4" />}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                  <p className="text-xs text-gray-500">{activity.time}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.message}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{activity.time}</p>
                 </div>
               </div>
             ))}
@@ -438,6 +299,85 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Quick Actions */}
+      {userType === 'employee' && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button 
+              onClick={() => setIsAddCustomerModalOpen(true)}
+              className="btn btn-primary"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Add Customer
+            </button>
+            <button 
+              onClick={() => setIsOpenAccountModalOpen(true)}
+              className="btn btn-secondary"
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Open Account
+            </button>
+            <button 
+              onClick={() => setIsProcessTransactionModalOpen(true)}
+              className="btn btn-outline"
+            >
+              <ArrowLeftRight className="h-4 w-4 mr-2" />
+              Process Transaction
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add Customer Modal */}
+      <Modal
+        isOpen={isAddCustomerModalOpen}
+        onClose={() => setIsAddCustomerModalOpen(false)}
+        title="Add New Customer"
+        size="lg"
+      >
+        <CustomerForm
+          onClose={() => setIsAddCustomerModalOpen(false)}
+          onSuccess={() => {
+            setIsAddCustomerModalOpen(false);
+            // Refresh dashboard data
+            window.location.reload();
+          }}
+        />
+      </Modal>
+
+      {/* Open Account Modal */}
+      <Modal
+        isOpen={isOpenAccountModalOpen}
+        onClose={() => setIsOpenAccountModalOpen(false)}
+        title="Open New Account"
+        size="lg"
+      >
+        <AccountForm
+          customers={customersData?.data || []}
+          accountTypes={accountTypesData?.data || []}
+          branches={branchesData?.data || []}
+          onSubmit={handleCreateAccount}
+          isLoading={false}
+        />
+      </Modal>
+
+      {/* Process Transaction Modal */}
+      <Modal
+        isOpen={isProcessTransactionModalOpen}
+        onClose={() => setIsProcessTransactionModalOpen(false)}
+        title="Create New Transaction"
+        size="lg"
+      >
+        <TransactionForm
+          onClose={() => setIsProcessTransactionModalOpen(false)}
+          onSuccess={() => {
+            setIsProcessTransactionModalOpen(false);
+            // Refresh dashboard data
+            window.location.reload();
+          }}
+        />
+      </Modal>
     </div>
   );
 };

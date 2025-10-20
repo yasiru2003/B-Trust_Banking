@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Eye, Download, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Download, TrendingUp, TrendingDown, Banknote, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
 import TransactionForm from '../components/TransactionForm';
 import api from '../services/authService';
 import toast from 'react-hot-toast';
+import { downloadTransactionReceipt } from '../utils/pdfGenerator';
 
 const Transactions = () => {
   const { hasPermission } = useAuth();
@@ -53,6 +54,20 @@ const Transactions = () => {
     setIsViewModalOpen(true);
   };
 
+  const handleDownloadReceipt = (transaction) => {
+    try {
+      const result = downloadTransactionReceipt(transaction);
+      if (result.success) {
+        toast.success(`Receipt downloaded: ${result.filename}`);
+      } else {
+        toast.error(`Failed to generate PDF: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download receipt');
+    }
+  };
+
   const transactions = transactionsData?.data || [];
   const stats = statsData?.data || {};
 
@@ -77,56 +92,56 @@ const Transactions = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <DollarSign className="h-6 w-6 text-blue-600" />
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              <Banknote className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Volume</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Volume</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 LKR {stats.total_volume?.toLocaleString() || '0'}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-green-600" />
+            <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Deposits</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Deposits</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 LKR {stats.total_deposits?.toLocaleString() || '0'}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <TrendingDown className="h-6 w-6 text-red-600" />
+            <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
+              <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Withdrawals</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Withdrawals</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 LKR {stats.total_withdrawals?.toLocaleString() || '0'}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <DollarSign className="h-6 w-6 text-purple-600" />
+            <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+              <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Today's Count</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Today's Count</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {stats.today_count || '0'}
               </p>
             </div>
@@ -135,10 +150,10 @@ const Transactions = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Search
             </label>
             <div className="relative">
@@ -154,22 +169,23 @@ const Transactions = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Transaction Type
             </label>
             <select
-              value={filters.transaction_type || ''}
-              onChange={(e) => setFilters({ ...filters, transaction_type: e.target.value })}
+              value={filters.transaction_type_id || ''}
+              onChange={(e) => setFilters({ ...filters, transaction_type_id: e.target.value })}
               className="input"
             >
               <option value="">All Types</option>
-              <option value="Deposit">Deposit</option>
-              <option value="Withdraw">Withdrawal</option>
+              <option value="DEP001">Deposit</option>
+              <option value="WIT001">Withdrawal</option>
+              <option value="INT001">Interest Calculation</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Status
             </label>
             <select
@@ -197,7 +213,7 @@ const Transactions = () => {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <LoadingSpinner size="xl" />
@@ -205,8 +221,8 @@ const Transactions = () => {
         ) : error ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <p className="text-gray-500 mb-4">No transactions found or database not set up yet</p>
-              <p className="text-sm text-gray-400">Create your first transaction to get started</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No transactions found or database not set up yet</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">Create your first transaction to get started</p>
             </div>
           </div>
         ) : (
@@ -235,20 +251,22 @@ const Transactions = () => {
                           <div className="font-medium">
                             {transaction.customer_name || 'N/A'}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
                             {transaction.account_number || 'N/A'}
                           </div>
                         </div>
                       </td>
                       <td className="table-cell">
                         <span className={`badge ${
-                          transaction.transaction_type === 'Deposit' 
+                          transaction.type_name === 'Deposit' 
                             ? 'badge-success' 
-                            : transaction.transaction_type === 'Withdraw'
+                            : transaction.type_name === 'Withdraw'
                             ? 'badge-warning'
-                            : 'badge-info'
+                            : transaction.type_name === 'Interest_Calculation'
+                            ? 'badge-info'
+                            : 'badge-secondary'
                         }`}>
-                          {transaction.transaction_type}
+                          {transaction.type_name === 'Interest_Calculation' ? 'Interest Calculation' : transaction.type_name || 'Unknown'}
                         </span>
                       </td>
                       <td className="table-cell">
@@ -271,7 +289,7 @@ const Transactions = () => {
                         <div className="text-sm">
                           {transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {transaction.date ? new Date(transaction.date).toLocaleTimeString() : ''}
                         </div>
                       </td>
@@ -285,7 +303,11 @@ const Transactions = () => {
                             <Eye className="h-4 w-4" />
                           </button>
                           {hasPermission('view_all_transactions') && (
-                            <button className="btn btn-ghost btn-sm" title="Download Receipt">
+                            <button 
+                              onClick={() => handleDownloadReceipt(transaction)}
+                              className="btn btn-ghost btn-sm" 
+                              title="Download Receipt"
+                            >
                               <Download className="h-4 w-4" />
                             </button>
                           )}
@@ -300,7 +322,7 @@ const Transactions = () => {
             {/* Pagination */}
             {transactions.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-gray-500">No transactions found</p>
+                <p className="text-gray-500 dark:text-gray-400">No transactions found</p>
               </div>
             )}
           </>
@@ -340,13 +362,15 @@ const Transactions = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Type</label>
                 <span className={`badge ${
-                  selectedTransaction.transaction_type === 'Deposit' 
+                  selectedTransaction.type_name === 'Deposit' 
                     ? 'badge-success' 
-                    : selectedTransaction.transaction_type === 'Withdraw'
+                    : selectedTransaction.type_name === 'Withdraw'
                     ? 'badge-warning'
-                    : 'badge-info'
+                    : selectedTransaction.type_name === 'Interest_Calculation'
+                    ? 'badge-info'
+                    : 'badge-secondary'
                 }`}>
-                  {selectedTransaction.transaction_type}
+                  {selectedTransaction.type_name === 'Interest_Calculation' ? 'Interest Calculation' : selectedTransaction.type_name || 'Unknown'}
                 </span>
               </div>
             </div>
@@ -397,6 +421,13 @@ const Transactions = () => {
             )}
 
             <div className="flex justify-end pt-4 border-t">
+              <button
+                onClick={() => handleDownloadReceipt(selectedTransaction)}
+                className="btn btn-primary mr-2"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Receipt
+              </button>
               <button
                 onClick={() => setIsViewModalOpen(false)}
                 className="btn btn-outline"

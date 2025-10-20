@@ -126,6 +126,7 @@ router.get('/', hasPermission('view_all_transactions'), async (req, res) => {
   }
 });
 
+
 // GET /api/transactions/stats - Get transaction statistics
 router.get('/stats', hasPermission('view_all_transactions'), async (req, res) => {
   try {
@@ -136,6 +137,8 @@ router.get('/stats', hasPermission('view_all_transactions'), async (req, res) =>
         COUNT(CASE WHEN t.status = false THEN 1 END) as failed_transactions,
         SUM(CASE WHEN t.transaction_type_id = 'DEP001' AND t.status = true THEN t.amount ELSE 0 END) as total_deposits,
         SUM(CASE WHEN t.transaction_type_id = 'WIT001' AND t.status = true THEN t.amount ELSE 0 END) as total_withdrawals,
+        SUM(CASE WHEN t.status = true THEN t.amount ELSE 0 END) as total_volume,
+        COUNT(CASE WHEN t.date = CURRENT_DATE THEN 1 END) as today_count,
         AVG(CASE WHEN t.status = true THEN t.amount END) as average_transaction_amount
       FROM transaction t
       LEFT JOIN employee_auth e ON t.agent_id = e.employee_id
@@ -203,6 +206,97 @@ router.get('/types', hasPermission('view_all_transactions'), async (req, res) =>
     });
   }
 });
+
+// GET /api/transactions/recent - Get recent activities for dashboard
+router.get('/recent', hasPermission('view_all_transactions'), async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+    
+    let query = `
+      SELECT 
+        'transaction' as activity_type,
+        CASE 
+          WHEN tt.type_name = 'Deposit' THEN 'Deposit processed'
+          WHEN tt.type_name = 'Withdraw' THEN 'Withdrawal processed'
+          ELSE 'Transaction processed'
+        END as message,
+        t.date as activity_date,
+        CASE 
+          WHEN t.status = true THEN 'success'
+          ELSE 'danger'
+        END as status,
+        t.amount,
+        tt.type_name as transaction_type,
+        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+        a.account_number
+      FROM transaction t
+      LEFT JOIN transaction_type tt ON t.transaction_type_id = tt.transaction_type_id
+      LEFT JOIN account a ON t.account_number = a.account_number
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      LEFT JOIN employee_auth e ON t.agent_id = e.employee_id
+    `;
+    
+    const conditions = [];
+    const params = [];
+    let paramCount = 0;
+
+    // Role-based filtering
+    if (req.user.role === 'Agent') {
+      conditions.push(`TRIM(t.agent_id) = $${++paramCount}`);
+      params.push(req.user.employee_id.trim());
+    } else if (req.user.role === 'Manager') {
+      conditions.push(`e.branch_id = $${++paramCount}`);
+      params.push(req.user.branch_id);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY t.date DESC LIMIT $${++paramCount}`;
+    params.push(limit);
+
+    const result = await db.query(query, params);
+    
+    // Format the response
+    const activities = result.rows.map(row => ({
+      type: row.activity_type,
+      message: `${row.message} - ${row.customer_name} (LKR ${parseFloat(row.amount).toLocaleString()})`,
+      time: formatTimeAgo(row.activity_date),
+      status: row.status,
+      details: {
+        amount: row.amount,
+        transaction_type: row.transaction_type,
+        customer_name: row.customer_name,
+        account_number: row.account_number
+      }
+    }));
+
+    res.json({
+      success: true,
+      data: activities
+    });
+  } catch (error) {
+    console.error('Get recent activities error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent activities'
+    });
+  }
+});
+
+// Helper function to format time ago
+function formatTimeAgo(date) {
+  const now = new Date();
+  const activityDate = new Date(date);
+  const diffInSeconds = Math.floor((now - activityDate) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  return `${Math.floor(diffInSeconds / 2592000)} months ago`;
+}
 
 // GET /api/transactions/:id - Get transaction by ID
 router.get('/:id', hasPermission('view_all_transactions'), async (req, res) => {
@@ -313,12 +407,33 @@ router.post('/', verifyToken, requireAgent, checkTransactionLimit, async (req, r
     const transactionAmount = parseFloat(value.amount);
 
     // Check if it's a withdrawal and if sufficient funds
-    if (value.transaction_type_id === 'WIT001' && currentBalance < transactionAmount) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({
-        success: false,
-        message: 'Insufficient funds'
-      });
+    if (value.transaction_type_id === 'WIT001') {
+      if (currentBalance < transactionAmount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient funds. Available balance: LKR ${currentBalance.toLocaleString()}, Required: LKR ${transactionAmount.toLocaleString()}`
+        });
+      }
+      
+      // Check minimum balance requirement for withdrawals
+      const accountTypeResult = await client.query(
+        'SELECT at.minimum_balance FROM account a JOIN account_type at ON a.acc_type_id = at.acc_type_id WHERE a.account_number = $1',
+        [value.account_number]
+      );
+      
+      if (accountTypeResult.rows.length > 0) {
+        const minimumBalance = parseFloat(accountTypeResult.rows[0].minimum_balance || 0);
+        const balanceAfterWithdrawal = currentBalance - transactionAmount;
+        
+        if (minimumBalance > 0 && balanceAfterWithdrawal < minimumBalance) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            success: false,
+            message: `Withdrawal would violate minimum balance requirement. Minimum balance: LKR ${minimumBalance.toLocaleString()}, Balance after withdrawal: LKR ${balanceAfterWithdrawal.toLocaleString()}`
+          });
+        }
+      }
     }
 
     // Calculate new balance

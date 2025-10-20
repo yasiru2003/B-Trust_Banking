@@ -141,7 +141,7 @@ router.get('/stats', hasPermission('view_assigned_customers'), async (req, res) 
 
     // Role-based filtering aligned with auth middleware
     if (req.user?.role === 'Agent') {
-      conditions.push(`TRIM(c.agent_id) = $${++paramCount}`);
+      conditions.push(`TRIM(c.agent_id) = TRIM($${++paramCount})`);
       params.push(req.user.employee_id.trim());
     } else if (req.user?.role === 'Manager') {
       conditions.push(`e.branch_id = $${++paramCount}`);
@@ -829,6 +829,62 @@ router.get('/:id/photo', hasPermission('view_assigned_customers'), canAccessCust
     res.status(500).json({
       success: false,
       message: 'Failed to get customer photo'
+    });
+  }
+});
+
+// PATCH /api/customers/:id/kyc - Update KYC status
+router.patch('/:id/kyc', hasPermission('update_customer_info'), canAccessCustomer, async (req, res) => {
+  try {
+    const { kyc_status } = req.body;
+    
+    // Validate KYC status
+    if (typeof kyc_status !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'KYC status must be a boolean value'
+      });
+    }
+
+    // Check if customer exists
+    const existingResult = await db.query(
+      'SELECT customer_id, kyc_status FROM customer WHERE customer_id = $1',
+      [req.params.id]
+    );
+    
+    if (existingResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    const existingCustomer = existingResult.rows[0];
+
+    // Update KYC status
+    const updateResult = await db.query(
+      'UPDATE customer SET kyc_status = $1 WHERE customer_id = $2 RETURNING *',
+      [kyc_status, req.params.id]
+    );
+
+    const updatedCustomer = updateResult.rows[0];
+
+    res.json({
+      success: true,
+      message: `KYC status ${kyc_status ? 'approved' : 'rejected'} successfully`,
+      data: {
+        customer_id: updatedCustomer.customer_id,
+        kyc_status: updatedCustomer.kyc_status,
+        first_name: updatedCustomer.first_name,
+        last_name: updatedCustomer.last_name
+      }
+    });
+
+  } catch (error) {
+    console.error('Update KYC status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update KYC status'
     });
   }
 });
