@@ -144,7 +144,7 @@ const Dashboard = () => {
         },
         {
           title: isAgent ? 'My Total Balance' : 'Total Balance',
-          value: `$${(accountStats?.data?.total_balance || 0).toLocaleString()}`,
+          value: `LKR ${(accountStats?.data?.total_balance || 0).toLocaleString()}`,
           icon: DollarSign,
           color: 'yellow',
           change: isAgent ? 'Across your customers' : 'Across all accounts',
@@ -164,7 +164,7 @@ const Dashboard = () => {
         },
         {
           title: 'Total Balance',
-          value: `$${totalBalance.toLocaleString()}`,
+          value: `LKR ${totalBalance.toLocaleString()}`,
           icon: DollarSign,
           color: 'green',
           change: 'Across all accounts',
@@ -203,8 +203,8 @@ const Dashboard = () => {
       return dashboardData[3].data || [];
     } else if (userType === 'customer') {
       return [
-        { type: 'transaction', message: 'Deposit of $500 completed', time: '1 hour ago', status: 'success' },
-        { type: 'transaction', message: 'Withdrawal of $200 completed', time: '3 hours ago', status: 'success' },
+        { type: 'transaction', message: 'Deposit of LKR 500 completed', time: '1 hour ago', status: 'success' },
+        { type: 'transaction', message: 'Withdrawal of LKR 200 completed', time: '3 hours ago', status: 'success' },
         { type: 'account', message: 'Account statement generated', time: '1 day ago', status: 'info' },
         { type: 'security', message: 'Login from new device', time: '2 days ago', status: 'warning' },
       ];
