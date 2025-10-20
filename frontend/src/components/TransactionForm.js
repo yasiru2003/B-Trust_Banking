@@ -35,6 +35,8 @@ const TransactionForm = ({ onClose, onSuccess }) => {
 
   const transactionTypeId = watch('transaction_type_id');
   const customerId = watch('customer_id');
+  const amount = watch('amount');
+  const accountNumber = watch('account_number');
 
   // Fetch customers for dropdown
   const { data: customersData } = useQuery({
@@ -101,6 +103,11 @@ const TransactionForm = ({ onClose, onSuccess }) => {
         queryClient.invalidateQueries('transactions');
         queryClient.invalidateQueries('transaction-stats');
         queryClient.invalidateQueries('accounts');
+        queryClient.invalidateQueries(['accounts', 'agent']);
+        queryClient.invalidateQueries(['accounts', 'manager']);
+        queryClient.invalidateQueries('customer-accounts');
+        queryClient.invalidateQueries('accounts-stats');
+        queryClient.invalidateQueries('dashboard');
         toast.success('Transaction created successfully');
         reset();
         onClose();
@@ -114,6 +121,27 @@ const TransactionForm = ({ onClose, onSuccess }) => {
 
   const customers = customersData?.data || [];
   const accounts = accountsData?.data || [];
+
+  // Real-time validation for insufficient funds
+  const getInsufficientFundsError = () => {
+    if (!amount || !accountNumber || !transactionTypeId) return null;
+    
+    const transactionAmount = parseFloat(amount.replace(/,/g, ''));
+    const selectedAccount = accounts.find(a => a.account_number === accountNumber);
+    
+    if (!selectedAccount || isNaN(transactionAmount)) return null;
+    
+    const currentBalance = parseFloat(selectedAccount.current_balance || 0);
+    
+    // Only check for withdrawals
+    if (transactionTypeId.trim() === 'WIT001' && transactionAmount > currentBalance) {
+      return `Insufficient funds. Available balance: LKR ${currentBalance.toLocaleString()}, Required: LKR ${transactionAmount.toLocaleString()}`;
+    }
+    
+    return null;
+  };
+
+  const insufficientFundsError = getInsufficientFundsError();
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -345,12 +373,16 @@ const TransactionForm = ({ onClose, onSuccess }) => {
               min: { value: 0.01, message: 'Amount must be greater than 0' },
               max: { value: 1000000, message: 'Amount cannot exceed LKR 1,000,000' }
             })}
-            className="input w-full pl-10"
+            className={`input w-full pl-10 ${insufficientFundsError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
             placeholder="0.00"
+            title={insufficientFundsError || "Enter the transaction amount"}
           />
         </div>
         {errors.amount && (
           <p className="text-red-500 text-xs mt-1">{errors.amount.message}</p>
+        )}
+        {insufficientFundsError && (
+          <p className="text-red-500 text-xs mt-1">{insufficientFundsError}</p>
         )}
       </div>
 
@@ -450,19 +482,25 @@ const TransactionForm = ({ onClose, onSuccess }) => {
 
       {/* Account Balance Display */}
       {selectedAccount && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className={`border rounded-lg p-4 ${insufficientFundsError ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-900">Current Balance</p>
-              <p className="text-2xl font-bold text-blue-600">
+              <p className={`text-sm font-medium ${insufficientFundsError ? 'text-red-900' : 'text-blue-900'}`}>Current Balance</p>
+              <p className={`text-2xl font-bold ${insufficientFundsError ? 'text-red-600' : 'text-blue-600'}`}>
                 LKR {selectedAccount.current_balance?.toLocaleString() || '0'}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-blue-700">Account Type</p>
-              <p className="font-medium text-blue-900">{selectedAccount.account_type}</p>
+              <p className={`text-sm ${insufficientFundsError ? 'text-red-700' : 'text-blue-700'}`}>Account Type</p>
+              <p className={`font-medium ${insufficientFundsError ? 'text-red-900' : 'text-blue-900'}`}>{selectedAccount.account_type}</p>
             </div>
           </div>
+          {insufficientFundsError && (
+            <div className="mt-3 p-2 bg-red-100 border border-red-300 rounded">
+              <p className="text-sm text-red-800 font-medium">⚠️ Insufficient Funds</p>
+              <p className="text-xs text-red-700 mt-1">You cannot withdraw more than the available balance.</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -501,7 +539,7 @@ const TransactionForm = ({ onClose, onSuccess }) => {
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={isSubmitting}
+          disabled={isSubmitting || insufficientFundsError}
         >
           {isSubmitting ? (
             <>
@@ -518,3 +556,4 @@ const TransactionForm = ({ onClose, onSuccess }) => {
 };
 
 export default TransactionForm;
+
