@@ -71,30 +71,30 @@ const Branches = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">All Branches ({branches.length})</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">All Branches ({branches.length})</h3>
         </div>
         {loading ? (
-          <div className="p-6">Loading...</div>
+          <div className="p-6 text-gray-900 dark:text-white">Loading...</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">District</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Town</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">District</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Town</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Phone</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {branches.map(b => (
-                  <tr key={b.branch_id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{b.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{b.district || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{b.town || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{b.phone_number || '-'}</td>
+                  <tr key={b.branch_id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">{b.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">{b.district || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">{b.town || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-white">{b.phone_number || '-'}</td>
                   </tr>
                 ))}
               </tbody>
