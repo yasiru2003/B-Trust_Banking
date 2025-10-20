@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Eye, DollarSign, Calendar, Percent, TrendingUp } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Search, Filter, Eye, Download, TrendingUp, TrendingDown, DollarSign, Calendar, Percent } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -9,8 +9,8 @@ import api from '../services/authService';
 import toast from 'react-hot-toast';
 
 const FixedDeposits = () => {
-  const { hasPermission, user } = useAuth();
-  const isAdmin = user?.role === 'Admin';
+  const { hasPermission,user } = useAuth();
+  const isAgent = user?.role === 'Agent';
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
@@ -103,21 +103,16 @@ const FixedDeposits = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fixed Deposits</h1>
-          <p className="text-gray-600">{isAdmin ? 'View customer fixed deposits and investments' : 'Manage customer fixed deposits and investments'}</p>
+          <p className="text-gray-600">Manage customer fixed deposits and investments</p>
         </div>
-        {hasPermission('create_transaction') && !isAdmin && (
-          <button
+        {isAgent && hasPermission('create_transaction') && (
+          <button 
             onClick={() => setIsAddModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center"
           >
             <Plus className="h-4 w-4 mr-2" />
             Open FD
           </button>
-        )}
-        {isAdmin && (
-          <div className="text-sm text-gray-500 italic">
-            View-only access. Only Managers and Agents can create Fixed Deposits.
-          </div>
         )}
       </div>
 
@@ -237,73 +232,86 @@ const FixedDeposits = () => {
       </div>
 
       {/* FDs Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   FD Number
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Customer
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                {user?.role === 'Manager' && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Agent
+                  </th>
+                )}
+                
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Interest Rate
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tenure
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Maturity Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white divide-y divide-gray-200">
               {fds.map((fd) => (
-                <tr key={fd.fd_number} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr key={fd.fd_number} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    <div className="text-sm font-medium text-gray-900">
                       {fd.fd_number}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="text-sm text-gray-500">
                       {formatDate(fd.opening_date)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    <div className="text-sm font-medium text-gray-900">
                       {fd.customer_name || 'Unknown'}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="text-sm text-gray-500">
                       {fd.customer_id}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {user?.role === 'Manager' && (
+                      <div className="text-sm text-gray-900">
+                        {fd.agent_name || 'Unknown'}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
                       {formatCurrency(fd.principal_amount)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
+                    <div className="text-sm text-gray-900">
                       {fd.interest_rate}% p.a.
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
+                    <div className="text-sm text-gray-900">
                       {fd.tenure_months} months
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
+                    <div className="text-sm text-gray-900">
                       {formatDate(fd.maturity_date)}
                     </div>
                   </td>
@@ -313,7 +321,7 @@ const FixedDeposits = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => handleViewFD(fd)}
-                      className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
+                      className="text-blue-600 hover:text-blue-900 mr-3"
                     >
                       <Eye className="h-4 w-4" />
                     </button>
@@ -326,7 +334,7 @@ const FixedDeposits = () => {
 
         {/* Pagination */}
         {pagination.pages > 1 && (
-          <div className="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
+          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
                 onClick={() => setPage(Math.max(1, page - 1))}

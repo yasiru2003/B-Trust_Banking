@@ -111,7 +111,8 @@ const Sidebar = ({ isOpen, onClose }) => {
     },
   ];
 
- 
+  
+
 
   const filteredNavigation = navigation.filter(item => {
     // Check permission
@@ -120,6 +121,14 @@ const Sidebar = ({ isOpen, onClose }) => {
     }
     // Check if admin only
     if (item.adminOnly && (userType !== 'employee' || user?.role !== 'Admin')) {
+      return false;
+    }
+    return true;
+  });
+
+  // Managers should not see Branches or Settings tabs
+  const finalNavigation = filteredNavigation.filter(item => {
+    if (user?.role === 'Manager' && (item.name === 'Branches' || item.name === 'Settings')) {
       return false;
     }
     return true;
@@ -156,7 +165,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         <nav className="mt-8 px-4">
           <ul className="space-y-2">
-            {filteredNavigation.map((item) => {
+            {finalNavigation.map((item) => {
               const Icon = item.icon;
               return (
                 <li key={item.name}>

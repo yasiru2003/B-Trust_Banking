@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CreditCard, Plus, Search, Filter, Eye, Info } from 'lucide-react';
+import { CreditCard, Plus, Search, Filter, Eye, DollarSign } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
-import AccountForm from '../components/AccountForm';
 import api from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 
 const Accounts = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedType, setSelectedType] = useState('');
@@ -58,7 +55,7 @@ const Accounts = () => {
           success: true,
           data: [
             { acc_type_id: 'SAV001', type_name: 'Savings Account' },
-            { acc_type_id: 'CUR001', type_name: 'Current Account' }
+            { acc_type_id: 'CUR001', type_name: 'Joint Account' }
           ]
         };
       }
@@ -143,11 +140,6 @@ const Accounts = () => {
     createAccountMutation.mutate(formData);
   };
 
-  const handleViewAccountDetails = (account) => {
-    setSelectedAccount(account);
-    setIsDetailsModalOpen(true);
-  };
-
   const filteredAccounts = accountsData?.data?.filter(account => {
     const matchesSearch = account.account_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          account.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -198,8 +190,27 @@ const Accounts = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
-          <p className="text-gray-600">View and manage customer accounts and balances</p>
+          <p className="text-gray-600">Manage customer accounts and balances</p>
         </div>
+        {!isManager && (
+          <button 
+            onClick={() => {
+              console.log('Open Account button clicked');
+              console.log('Errors:', { customersError, accountTypesError, branchesError });
+              console.log('Data available:', { 
+                customers: customersData?.data?.length || 0, 
+                accountTypes: accountTypes?.data?.length || 0, 
+                branches: branchesData?.data?.length || 0 
+              });
+              console.log('Opening modal...');
+              setIsCreateModalOpen(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Open Account
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -216,7 +227,7 @@ const Accounts = () => {
             />
           </div>
           
-          {!isAgent && (
+          {!isAgent && !isManager && (
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
@@ -279,9 +290,14 @@ const Accounts = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Account Type
                   </th>
-                  {!isAgent && (
+                  {!isAgent && !isManager && (
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Branch
+                    </th>
+                  )}
+                  {user?.role === 'Manager' && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Agent
                     </th>
                   )}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -316,10 +332,17 @@ const Accounts = () => {
                         {account.account_type || 'N/A'}
                       </div>
                     </td>
-                    {!isAgent && (
+                    {!isAgent && !isManager && (
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           {account.branch_name || 'N/A'}
+                        </div>
+                      </td>
+                    )}
+                    {user?.role === 'Manager' && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {account.agent_name || account.employee_name || account.agent || account.agent_id || '-'}
                         </div>
                       </td>
                     )}
@@ -339,11 +362,15 @@ const Accounts = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button 
-                        onClick={() => handleViewAccountDetails(account)}
+                        onClick={() => {
+                          // Show account details in a modal or expandable row
+                          console.log('More details for account:', account);
+                          alert(`Account Details:\n\nAccount Number: ${account.account_number}\nCustomer: ${account.customer_name}\nType: ${account.account_type}\nBalance: LKR ${parseFloat(account.current_balance || 0).toLocaleString()}\nStatus: ${account.status ? 'Active' : 'Inactive'}\nOpening Date: ${account.opening_date || 'N/A'}`);
+                        }}
                         className="text-green-600 hover:text-green-900 mr-3"
                         title="View More Details"
                       >
-                        <Info className="h-4 w-4" />
+                        <DollarSign className="h-4 w-4" />
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -360,97 +387,282 @@ const Accounts = () => {
       </div>
 
       {/* Create Account Modal */}
-      <Modal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Open New Account"
-      >
-        <AccountForm
-          customers={customersData?.data || []}
-          accountTypes={accountTypes?.data || []}
-          branches={branchesData?.data || []}
-          onSubmit={handleCreateAccount}
-          isLoading={createAccountMutation.isLoading}
-        />
-      </Modal>
-
-      {/* Account Details Modal */}
-      <Modal
-        isOpen={isDetailsModalOpen}
-        onClose={() => setIsDetailsModalOpen(false)}
-        title="Account Details"
-        size="lg"
-      >
-        {selectedAccount && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Account Number</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAccount.account_number}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
-                <div className="mt-1">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    selectedAccount.status 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {selectedAccount.status ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Customer Name</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAccount.customer_name || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Account Type</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAccount.account_type || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Current Balance</label>
-                <p className="mt-1 text-sm font-medium text-gray-900">
-                  LKR {parseFloat(selectedAccount.current_balance || 0).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Branch</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAccount.branch_name || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Opening Date</label>
-                <p className="mt-1 text-sm text-gray-900">
-                  {selectedAccount.opening_date ? new Date(selectedAccount.opening_date).toLocaleDateString() : 'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Customer Phone</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAccount.phone_number || 'N/A'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Customer Email</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAccount.email || 'N/A'}</p>
-              </div>
-            </div>
-            
-            <div className="pt-4 border-t">
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setIsDetailsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {!isManager && (
+        <Modal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          title="Open New Account"
+        >
+          <AccountForm
+            customers={customersData?.data || []}
+            accountTypes={accountTypes?.data || []}
+            branches={branchesData?.data || []}
+            onSubmit={handleCreateAccount}
+            isLoading={createAccountMutation.isLoading}
+          />
+        </Modal>
+      )}    
     </div>
   );
 };
 
+// Account Form Component
+const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading }) => {
+  const [formData, setFormData] = useState({
+    customer_id: '',
+    acc_type_id: '',
+    branch_id: '',
+    current_balance: 0
+  });
+  const [selectedAccountType, setSelectedAccountType] = useState(null);
+  const [balanceError, setBalanceError] = useState('');
+
+  // Get user info from AuthContext
+  const { user } = useAuth();
+  const isAgent = user?.role === 'Agent' || user?.role === 'agent';
+  const agentBranchId = user?.branch_id;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    console.log('Form submission - selectedAccountType:', selectedAccountType);
+    console.log('Form submission - formData:', formData);
+    
+    // Validate minimum balance
+    if (selectedAccountType && selectedAccountType.minimum_balance) {
+      const minBalance = parseFloat(selectedAccountType.minimum_balance);
+      const enteredBalance = parseFloat(formData.current_balance);
+      
+      console.log('Validation - minBalance:', minBalance, 'enteredBalance:', enteredBalance);
+      
+      if (enteredBalance < minBalance) {
+        console.log('Validation failed - balance too low');
+        setBalanceError(`Minimum balance required: LKR ${minBalance.toLocaleString()}`);
+        return;
+      }
+    } else if (selectedAccountType && selectedAccountType.acc_type_id === 'SAV001') {
+      // Fallback validation for Savings Account if minimum_balance is not loaded
+      const minBalance = 1000;
+      const enteredBalance = parseFloat(formData.current_balance);
+      
+      console.log('Fallback validation - SAV001 minBalance:', minBalance, 'enteredBalance:', enteredBalance);
+      
+      if (enteredBalance < minBalance) {
+        console.log('Fallback validation failed - balance too low');
+        setBalanceError(`Minimum balance required for Savings Account: LKR ${minBalance.toLocaleString()}`);
+        return;
+      }
+    }
+    
+    // Clear any previous errors
+    setBalanceError('');
+    
+    // For agents, automatically set the branch_id to their assigned branch
+    const submitData = { ...formData };
+    if (isAgent && agentBranchId) {
+      submitData.branch_id = agentBranchId;
+    }
+    
+    console.log('Submitting data:', submitData);
+    onSubmit(submitData);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+    
+    // Handle account type change
+    if (name === 'acc_type_id') {
+      const accountType = accountTypes.find(type => type.acc_type_id === value);
+      console.log('Selected account type:', accountType);
+      setSelectedAccountType(accountType);
+      
+      // Clear balance error when account type changes
+      setBalanceError('');
+      
+      // If there's a minimum balance, set it as the default
+      if (accountType && accountType.minimum_balance) {
+        console.log('Setting minimum balance:', accountType.minimum_balance);
+        setFormData(prev => ({
+          ...prev,
+          current_balance: parseFloat(accountType.minimum_balance)
+        }));
+      } else {
+        console.log('No minimum balance for this account type');
+      }
+    }
+    
+    // Handle balance change - validate in real-time
+    if (name === 'current_balance') {
+      const enteredBalance = parseFloat(value);
+      console.log('Entered balance:', enteredBalance);
+      console.log('Selected account type:', selectedAccountType);
+      
+      if (selectedAccountType && selectedAccountType.minimum_balance) {
+        const minBalance = parseFloat(selectedAccountType.minimum_balance);
+        console.log('Minimum balance required:', minBalance);
+        
+        if (enteredBalance < minBalance) {
+          console.log('Balance too low!');
+          setBalanceError(`Minimum balance required: LKR ${minBalance.toLocaleString()}`);
+        } else {
+          console.log('Balance is valid');
+          setBalanceError('');
+        }
+      } else if (selectedAccountType && selectedAccountType.acc_type_id === 'SAV001') {
+        // Fallback validation for Savings Account
+        const minBalance = 1000;
+        console.log('Fallback validation - SAV001 minimum balance:', minBalance);
+        
+        if (enteredBalance < minBalance) {
+          console.log('Fallback validation - Balance too low!');
+          setBalanceError(`Minimum balance required for Savings Account: LKR ${minBalance.toLocaleString()}`);
+        } else {
+          console.log('Fallback validation - Balance is valid');
+          setBalanceError('');
+        }
+      } else {
+        console.log('No minimum balance validation needed');
+        setBalanceError('');
+      }
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Customer
+        </label>
+        <select
+          name="customer_id"
+          value={formData.customer_id}
+          onChange={handleChange}
+          required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select Customer</option>
+          {customers.map(customer => (
+            <option key={customer.customer_id} value={customer.customer_id}>
+              {customer.first_name} {customer.last_name} ({customer.customer_id})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Account Type
+        </label>
+        <select
+          name="acc_type_id"
+          value={formData.acc_type_id}
+          onChange={handleChange}
+          required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select Account Type</option>
+          {accountTypes.map(type => (
+            <option key={type.acc_type_id} value={type.acc_type_id}>
+              {type.type_name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {!isAgent &&(
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Branch
+          </label>
+          <select
+            name="branch_id"
+            value={formData.branch_id}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select Branch</option>
+            {branches.map(branch => (
+              <option key={branch.branch_id} value={branch.branch_id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      
+      {isAgent && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Branch
+          </label>
+          <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
+            {branches.find(b => b.branch_id === agentBranchId)?.name || 'Your Assigned Branch'}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Branch is automatically set to your assigned branch</p>
+        </div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Initial Balance (LKR)
+          {selectedAccountType && (selectedAccountType.minimum_balance || selectedAccountType.acc_type_id === 'SAV001') && (
+            <span className="text-red-500 ml-1">
+              * (Min: LKR {(selectedAccountType.minimum_balance ? parseFloat(selectedAccountType.minimum_balance) : 1000).toLocaleString()})
+            </span>
+          )}
+        </label>
+        <input
+          type="number"
+          name="current_balance"
+          value={formData.current_balance}
+          onChange={handleChange}
+          min={selectedAccountType?.minimum_balance || (selectedAccountType?.acc_type_id === 'SAV001' ? 1000 : 0)}
+          step="0.01"
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+            balanceError 
+              ? 'border-red-300 focus:ring-red-500' 
+              : 'border-gray-300 focus:ring-blue-500'
+          }`}
+        />
+        {balanceError && (
+          <p className="text-red-500 text-sm mt-1">{balanceError}</p>
+        )}
+        {selectedAccountType && (selectedAccountType.minimum_balance || selectedAccountType.acc_type_id === 'SAV001') && (
+          <p className="text-gray-500 text-xs mt-1">
+            Minimum balance for {selectedAccountType.type_name}: LKR {(selectedAccountType.minimum_balance ? parseFloat(selectedAccountType.minimum_balance) : 1000).toLocaleString()}
+          </p>
+        )}
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={() => {
+            setFormData({ customer_id: '', acc_type_id: '', branch_id: '', current_balance: 0 });
+            setSelectedAccountType(null);
+            setBalanceError('');
+          }}
+          className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200"
+        >
+          Reset
+        </button>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Creating...' : 'Create Account'}
+        </button>
+      </div>
+    </form>
+  );
+};
 
 export default Accounts;
 

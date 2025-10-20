@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 const Employees = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'Admin';
+  const isManager = user?.role === 'Manager';
   const [employees, setEmployees] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +113,10 @@ const Employees = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                  {!isManager && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -123,7 +127,10 @@ const Employees = () => {
                     <td className="px-6 py-4 whitespace-nowrap">{emp.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{emp.phone_number || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{emp.role}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{emp.branch_id}</td>
+                    {!isManager && (
+                      <td className="px-6 py-4 whitespace-nowrap">{emp.branch_id}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
