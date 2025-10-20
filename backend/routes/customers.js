@@ -528,7 +528,7 @@ router.post('/', hasPermission('create_customer'), async (req, res) => {
 });
 
 // PUT /api/customers/:id - Update customer
-router.put('/:id', hasPermission('update_customer'), canAccessCustomer, async (req, res) => {
+router.put('/:id', hasPermission('update_customer_info'), canAccessCustomer, async (req, res) => {
   try {
     // Validate request data
     const { error, value } = updateCustomerSchema.validate(req.body);

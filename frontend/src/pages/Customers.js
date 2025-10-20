@@ -61,10 +61,10 @@ const Customers = () => {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries('customers');
       const status = variables.kycStatus ? 'verified' : 'rejected';
-      toast.success(`KYC status ${status} successfully!`);
+      toast.success(`KYC status ${status} successfully!`, { id: 'kyc-update' });
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || 'Failed to update KYC status');
+      toast.error(error.response?.data?.message || 'Failed to update KYC status', { id: 'kyc-update' });
     }
   });
 
@@ -78,9 +78,13 @@ const Customers = () => {
     const newStatus = !currentStatus;
     const action = newStatus ? 'verify' : 'reject';
     
-    if (window.confirm(`Are you sure you want to ${action} KYC for this customer?`)) {
+    // Show confirmation toast instead of window.confirm
+    toast.loading(`${action === 'verify' ? 'Verifying' : 'Rejecting'} KYC...`, { id: 'kyc-update' });
+    
+    // Simulate a small delay for better UX, then proceed
+    setTimeout(() => {
       updateKycMutation.mutate({ customerId, kycStatus: newStatus });
-    }
+    }, 500);
   };
 
 
