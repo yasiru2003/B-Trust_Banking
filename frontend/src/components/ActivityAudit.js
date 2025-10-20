@@ -1,25 +1,17 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  Search, 
-  Filter, 
   Download, 
   Eye, 
   CheckCircle, 
   XCircle, 
-  Calendar,
-  User,
   Activity,
-  TrendingUp,
-  BarChart3,
-  Users,
-  Clock,
-  AlertTriangle
+  Users
 } from 'lucide-react';
 import api from '../services/authService';
 import LoadingSpinner from './LoadingSpinner';
 import Modal from './Modal';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 const ActivityAudit = () => {
   const [filters, setFilters] = useState({
@@ -38,7 +30,7 @@ const ActivityAudit = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // Fetch activity audit logs
-  const { data: auditData, isLoading, error } = useQuery({
+  const { data: auditData, isLoading } = useQuery({
     queryKey: ['activity-audit', filters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -146,7 +138,6 @@ const ActivityAudit = () => {
     );
   };
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   if (isLoading) {
     return (
@@ -452,3 +443,4 @@ const ActivityAudit = () => {
 };
 
 export default ActivityAudit;
+

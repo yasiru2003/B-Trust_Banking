@@ -1,10 +1,10 @@
 services:
-  # Backend Service
+  # Single Service (Backend + Frontend)
   - type: web
-    name: b-trust-backend
+    name: b-trust-app
     env: node
     plan: free
-    buildCommand: cd backend && npm install
+    buildCommand: npm install && cd backend && npm install && cd ../frontend && npm install && npm run build
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
@@ -27,14 +27,5 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: "24h"
-
-  # Frontend Service
-  - type: web
-    name: b-trust-frontend
-    env: static
-    plan: free
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: ./frontend/build
-    envVars:
-      - key: REACT_APP_API_URL
-        value: https://b-trust-backend.onrender.com
+      - key: FRONTEND_URL
+        value: https://b-trust-app.onrender.com

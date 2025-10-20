@@ -1,28 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   Tooltip, 
   ResponsiveContainer, 
   CartesianGrid,
   Scatter,
-  ScatterChart,
-  ReferenceLine
+  ScatterChart
 } from 'recharts';
 import { 
   AlertTriangle, 
   Activity, 
   Shield, 
-  Zap,
   TrendingUp,
   Eye,
   Volume2,
   VolumeX
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import LoadingSpinner from '../components/LoadingSpinner';
 import api from '../services/authService';
 
 const LiveFraudAnalyzer = () => {
@@ -124,7 +119,7 @@ const LiveFraudAnalyzer = () => {
         pingIntervalRef.current = null;
       }
     };
-  }, [user?.role]);
+  }, [user?.role, handleWebSocketMessage]);
 
   // Initialize audio for fraud alerts
   useEffect(() => {
@@ -144,6 +139,9 @@ const LiveFraudAnalyzer = () => {
         break;
       case 'pong':
         // Keep connection alive
+        break;
+      default:
+        // Handle unknown message types
         break;
     }
   };
@@ -274,15 +272,6 @@ const LiveFraudAnalyzer = () => {
     return new Date(timestamp).toLocaleTimeString();
   };
 
-  const getFraudColor = (severity) => {
-    switch (severity) {
-      case 'critical': return '#dc2626';
-      case 'high': return '#ea580c';
-      case 'medium': return '#d97706';
-      case 'low': return '#65a30d';
-      default: return '#6b7280';
-    }
-  };
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {

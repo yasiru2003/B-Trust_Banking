@@ -28,11 +28,9 @@ services:
       - key: JWT_EXPIRES_IN
         value: "24h"
 
-  # Frontend Service
-  - type: web
+  # Frontend Service (Static Site)
+  - type: static
     name: b-trust-frontend
-    env: static
-    plan: free
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: ./frontend/build
     envVars:

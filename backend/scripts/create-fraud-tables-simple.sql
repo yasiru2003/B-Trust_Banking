@@ -139,3 +139,4 @@ SELECT 'Views created: fraud_dashboard_stats, recent_fraud_alerts' as views;
 SELECT COUNT(*) as fraud_rules_count FROM fraud_rules;
 SELECT COUNT(*) as fraud_alerts_count FROM fraud_alerts;
 
+

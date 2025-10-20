@@ -295,3 +295,4 @@ class ActivityAuditService {
 }
 
 module.exports = ActivityAuditService;
+

@@ -393,3 +393,4 @@ class FraudDetectionService {
 }
 
 module.exports = new FraudDetectionService();
+

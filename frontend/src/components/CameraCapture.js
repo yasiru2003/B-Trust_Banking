@@ -19,7 +19,7 @@ const CameraCapture = ({ onCapture, onClose, isOpen }) => {
     return () => {
       stopCamera();
     };
-  }, [isOpen]);
+  }, [isOpen, stopCamera]);
 
   const startCamera = async () => {
     try {
@@ -191,6 +191,7 @@ const CameraCapture = ({ onCapture, onClose, isOpen }) => {
 };
 
 export default CameraCapture;
+
 
 
 

@@ -10,12 +10,8 @@ import {
   CheckCircle,
   Users,
   TrendingUp,
-  TrendingDown,
   RefreshCw,
   Settings,
-  Eye,
-  Lock,
-  Unlock,
   BarChart3
 } from 'lucide-react';
 import api from '../services/authService';
@@ -27,7 +23,6 @@ import ActivityAudit from './ActivityAudit';
 
 const AdminDashboard = () => {
   const [selectedView, setSelectedView] = useState('overview');
-  const [selectedSessionTab, setSelectedSessionTab] = useState('sessions');
   const location = useLocation();
 
   // Set view based on current route

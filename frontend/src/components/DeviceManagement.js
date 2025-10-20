@@ -4,17 +4,12 @@ import {
   Smartphone, 
   Monitor, 
   Tablet, 
-  Shield, 
   ShieldCheck, 
   ShieldX,
   Clock,
-  MapPin,
-  Trash2,
   Eye,
   AlertTriangle,
-  CheckCircle,
-  XCircle,
-  RefreshCw
+  CheckCircle
 } from 'lucide-react';
 import api from '../services/authService';
 import LoadingSpinner from './LoadingSpinner';
