@@ -213,7 +213,7 @@ const Transactions = () => {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <LoadingSpinner size="xl" />
@@ -221,8 +221,8 @@ const Transactions = () => {
         ) : error ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <p className="text-gray-500 mb-4">No transactions found or database not set up yet</p>
-              <p className="text-sm text-gray-400">Create your first transaction to get started</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-4">No transactions found or database not set up yet</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">Create your first transaction to get started</p>
             </div>
           </div>
         ) : (
@@ -251,7 +251,7 @@ const Transactions = () => {
                           <div className="font-medium">
                             {transaction.customer_name || 'N/A'}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
                             {transaction.account_number || 'N/A'}
                           </div>
                         </div>
@@ -289,7 +289,7 @@ const Transactions = () => {
                         <div className="text-sm">
                           {transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {transaction.date ? new Date(transaction.date).toLocaleTimeString() : ''}
                         </div>
                       </td>
@@ -322,7 +322,7 @@ const Transactions = () => {
             {/* Pagination */}
             {transactions.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-gray-500">No transactions found</p>
+                <p className="text-gray-500 dark:text-gray-400">No transactions found</p>
               </div>
             )}
           </>
