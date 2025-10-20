@@ -17,6 +17,7 @@ const otpRoutes = require('./routes/otp');
 const faceRoutes = require('./routes/face');
 const sessionRoutes = require('./routes/sessions');
 const { sessionMiddleware } = require('./middleware/sessionManager');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -101,6 +102,7 @@ app.use('/api/verification', require('./routes/verification'));
 app.use('/api/transaction-otp', require('./routes/transaction-otp'));
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

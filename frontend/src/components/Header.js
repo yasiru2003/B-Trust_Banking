@@ -1,13 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Menu, Bell, User, LogOut, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import api from '../services/authService';
+import NotificationModal from './NotificationModal';
 
 const Header = ({ onMenuClick }) => {
   const { user, logout, userType } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -33,6 +37,19 @@ const Header = ({ onMenuClick }) => {
       return 'User';
     }
   };
+
+  // Fetch unread notification count
+  const { data: unreadCountData } = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: async () => {
+      const response = await api.get('/notifications/unread-count');
+      return response.data;
+    },
+    enabled: userType === 'employee',
+    refetchInterval: 30000 // Refetch every 30 seconds
+  });
+
+  const unreadCount = unreadCountData?.count || 0;
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
@@ -67,10 +84,18 @@ const Header = ({ onMenuClick }) => {
           </button>
 
           {/* Notifications */}
-          <button className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
-          </button>
+          {userType === 'employee' && (
+            <button 
+              onClick={() => setIsNotificationModalOpen(true)}
+              className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 relative"
+              title="Notifications"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+              )}
+            </button>
+          )}
 
           {/* User menu */}
           <div className="flex items-center space-x-3">
@@ -95,6 +120,12 @@ const Header = ({ onMenuClick }) => {
           </div>
         </div>
       </div>
+
+      {/* Notification Modal */}
+      <NotificationModal 
+        isOpen={isNotificationModalOpen} 
+        onClose={() => setIsNotificationModalOpen(false)} 
+      />
     </header>
   );
 };

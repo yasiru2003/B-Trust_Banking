@@ -4,6 +4,7 @@ const db = require('../config/database');
 const { hasPermission, checkTransactionLimit, canAccessCustomer } = require('../middleware/permissions');
 const { verifyToken, requireAgent, requireBranchAccess } = require('../middleware/auth');
 const smsService = require('../services/smsService');
+const NotificationService = require('../services/notificationService');
 const Joi = require('joi');
 
 // Validation schemas
@@ -530,6 +531,23 @@ router.post('/', verifyToken, requireAgent, checkTransactionLimit, async (req, r
       } catch (smsError) {
         console.error('SMS notification failed:', smsError);
         // Don't fail the transaction if SMS fails
+      }
+    }
+
+    // Send notification for large transactions
+    if (status && transactionAmount > 50000) {
+      try {
+        const transactionType = value.transaction_type_id === 'DEP001' ? 'deposit' : 
+                               value.transaction_type_id === 'WIT001' ? 'withdrawal' : 'transaction';
+        await NotificationService.notifyLargeTransaction(
+          req.user.employee_id.trim(),
+          value.account_number,
+          transactionAmount,
+          transactionType
+        );
+      } catch (notificationError) {
+        console.error('Failed to send transaction notification:', notificationError);
+        // Don't fail the transaction if notification fails
       }
     }
 
