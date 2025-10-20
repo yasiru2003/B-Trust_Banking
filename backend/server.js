@@ -16,6 +16,7 @@ const fraudRoutes = require('./routes/fraud');
 const branchRoutes = require('./routes/branches');
 const otpRoutes = require('./routes/otp');
 const faceRoutes = require('./routes/face');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -96,6 +97,7 @@ app.use('/api/fixed-deposits', require('./routes/fixed-deposits-simple'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/verification', require('./routes/verification'));
 app.use('/api/transaction-otp', require('./routes/transaction-otp'));
+app.use('/api/notifications', notificationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
