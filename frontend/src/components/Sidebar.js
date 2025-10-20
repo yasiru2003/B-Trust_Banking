@@ -95,6 +95,13 @@ const Sidebar = ({ isOpen, onClose }) => {
       icon: Activity,
       permission: 'admin_access',
     }] : []),
+    // Activity Audit - Admin and Manager only
+    ...(user?.role === 'Admin' || user?.role === 'Manager' ? [{
+      name: 'Activity Audit',
+      href: '/admin/audit',
+      icon: BarChart3,
+      permission: null, // No specific permission required, just role check
+    }] : []),
     // Hide Branches for Agents; allow Managers/Admins via explicit permission or role
     ...(user?.role === 'Agent' ? [] : [{
       name: 'Branches',

@@ -4,7 +4,7 @@
     const res = await fetch('http://localhost:5001/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'manager@bt.com', password: 'manager123', userType: 'employee' })
+      body: JSON.stringify({ email: 'admin@bt.com', password: 'admin123', userType: 'employee' })
     });
     const data = await res.json();
     console.log('status:', res.status);
@@ -18,6 +18,13 @@
     process.exit(1);
   }
 })();
+
+
+
+
+
+
+
 
 
 

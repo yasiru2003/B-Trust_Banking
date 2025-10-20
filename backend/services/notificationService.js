@@ -165,6 +165,48 @@ class NotificationService {
       console.error('Error sending system event notification:', error);
     }
   }
+  // Auto-notify for FD maturity
+  static async notifyFDMaturity(fdNumber, customerName, agentId, maturityAmount) {
+    try {
+      const title = 'Fixed Deposit Matured';
+      const message = `Fixed Deposit ${fdNumber} for customer ${customerName} has matured. Maturity amount: LKR ${maturityAmount.toLocaleString()}`;
+      
+      // Notify the agent who opened the FD
+      if (agentId) {
+        await this.sendNotification('SYSTEM', agentId, title, message, 'alert', 'high');
+      }
+      
+      // Notify all managers
+      await this.sendToManagers('SYSTEM', title, message, 'alert', 'high');
+      
+      // Notify all admins
+      await this.sendToAdmins('SYSTEM', title, message, 'alert', 'high');
+      
+      console.log(`📧 FD maturity notification sent for FD ${fdNumber}`);
+    } catch (error) {
+      console.error('Error sending FD maturity notification:', error);
+    }
+  }
+
+  // Auto-notify for FD maturity (upcoming)
+  static async notifyFDUpcomingMaturity(fdNumber, customerName, agentId, daysUntilMaturity, maturityAmount) {
+    try {
+      const title = 'Fixed Deposit Maturity Reminder';
+      const message = `Fixed Deposit ${fdNumber} for customer ${customerName} will mature in ${daysUntilMaturity} days. Maturity amount: LKR ${maturityAmount.toLocaleString()}`;
+      
+      // Notify the agent who opened the FD
+      if (agentId) {
+        await this.sendNotification('SYSTEM', agentId, title, message, 'alert', 'normal');
+      }
+      
+      // Notify all managers
+      await this.sendToManagers('SYSTEM', title, message, 'alert', 'normal');
+      
+      console.log(`📧 FD maturity reminder sent for FD ${fdNumber}`);
+    } catch (error) {
+      console.error('Error sending FD maturity reminder:', error);
+    }
+  }
 }
 
 module.exports = NotificationService;

@@ -49,6 +49,24 @@ const Transactions = () => {
     }
   });
 
+  // Fetch customers for filtering
+  const { data: customersData } = useQuery({
+    queryKey: 'customers',
+    queryFn: async () => {
+      const response = await api.get('/customers?limit=1000');
+      return response.data;
+    }
+  });
+
+  // Fetch accounts for filtering
+  const { data: accountsData } = useQuery({
+    queryKey: 'accounts',
+    queryFn: async () => {
+      const response = await api.get('/accounts?limit=1000');
+      return response.data;
+    }
+  });
+
   const handleViewTransaction = (transaction) => {
     setSelectedTransaction(transaction);
     setIsViewModalOpen(true);
@@ -76,8 +94,8 @@ const Transactions = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
-          <p className="text-gray-600">Manage customer transactions and payments</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Transactions</h1>
+          <p className="text-gray-600 dark:text-gray-300">Manage customer transactions and payments</p>
         </div>
         {hasPermission('create_transaction') && (
           <button 
@@ -98,8 +116,8 @@ const Transactions = () => {
               <Banknote className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Volume</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 dark:text-gray-400">Total Volume</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
                 LKR {stats.total_volume?.toLocaleString() || '0'}
               </p>
             </div>
@@ -112,8 +130,8 @@ const Transactions = () => {
               <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Deposits</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 dark:text-gray-400">Deposits</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
                 LKR {stats.total_deposits?.toLocaleString() || '0'}
               </p>
             </div>
@@ -126,8 +144,8 @@ const Transactions = () => {
               <TrendingDown className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Withdrawals</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 dark:text-gray-400">Withdrawals</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
                 LKR {stats.total_withdrawals?.toLocaleString() || '0'}
               </p>
             </div>
@@ -140,8 +158,8 @@ const Transactions = () => {
               <Activity className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Today's Count</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-300 dark:text-gray-400">Today's Count</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white dark:text-white">
                 {stats.today_count || '0'}
               </p>
             </div>
@@ -151,9 +169,9 @@ const Transactions = () => {
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
               Search
             </label>
             <div className="relative">
@@ -167,9 +185,45 @@ const Transactions = () => {
               />
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
+              Customer
+            </label>
+            <select
+              value={filters.customer_id || ''}
+              onChange={(e) => setFilters({ ...filters, customer_id: e.target.value })}
+              className="input"
+            >
+              <option value="">All Customers</option>
+              {customersData?.data?.map(customer => (
+                <option key={customer.customer_id} value={customer.customer_id}>
+                  {customer.customer_id} - {customer.first_name} {customer.last_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
+              Account
+            </label>
+            <select
+              value={filters.account_number || ''}
+              onChange={(e) => setFilters({ ...filters, account_number: e.target.value })}
+              className="input"
+            >
+              <option value="">All Accounts</option>
+              {accountsData?.data?.map(account => (
+                <option key={account.account_number} value={account.account_number}>
+                  {account.account_number} - {account.customer_name}
+                </option>
+              ))}
+            </select>
+          </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
               Transaction Type
             </label>
             <select
@@ -185,7 +239,7 @@ const Transactions = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 dark:text-gray-300 mb-2">
               Status
             </label>
             <select
@@ -356,11 +410,11 @@ const Transactions = () => {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Transaction ID</label>
-                <p className="text-sm text-gray-900 font-mono">{selectedTransaction.transaction_id}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Transaction ID</label>
+                <p className="text-sm text-gray-900 dark:text-white font-mono">{selectedTransaction.transaction_id}</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Type</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
                 <span className={`badge ${
                   selectedTransaction.type_name === 'Deposit' 
                     ? 'badge-success' 
@@ -377,13 +431,13 @@ const Transactions = () => {
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Amount</label>
-                <p className="text-lg font-bold text-gray-900">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount</label>
+                <p className="text-lg font-bold text-gray-900 dark:text-white">
                   LKR {selectedTransaction.amount?.toLocaleString() || '0'}
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                 <span className={`badge ${
                   selectedTransaction.status === 'completed' 
                     ? 'badge-success' 
@@ -397,26 +451,26 @@ const Transactions = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Customer</label>
-              <p className="text-sm text-gray-900">{selectedTransaction.customer_name || 'N/A'}</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer</label>
+              <p className="text-sm text-gray-900 dark:text-white">{selectedTransaction.customer_name || 'N/A'}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Account</label>
-              <p className="text-sm text-gray-900">{selectedTransaction.account_number || 'N/A'}</p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Account</label>
+              <p className="text-sm text-gray-900 dark:text-white">{selectedTransaction.account_number || 'N/A'}</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Date & Time</label>
-              <p className="text-sm text-gray-900">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date & Time</label>
+              <p className="text-sm text-gray-900 dark:text-white">
                 {selectedTransaction.date ? new Date(selectedTransaction.date).toLocaleString() : 'N/A'}
               </p>
             </div>
 
             {selectedTransaction.description && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">Description</label>
-                <p className="text-sm text-gray-900">{selectedTransaction.description}</p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                <p className="text-sm text-gray-900 dark:text-white">{selectedTransaction.description}</p>
               </div>
             )}
 

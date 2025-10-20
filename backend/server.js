@@ -4,9 +4,11 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
+const http = require('http');
 require('dotenv').config({ path: './config.env' });
 
 const db = require('./config/database');
+const FDMaturityScheduler = require('./services/fdMaturityScheduler');
 const authRoutes = require('./routes/auth');
 const customerRoutes = require('./routes/customers');
 const accountRoutes = require('./routes/accounts');
@@ -16,11 +18,19 @@ const branchRoutes = require('./routes/branches');
 const otpRoutes = require('./routes/otp');
 const faceRoutes = require('./routes/face');
 const sessionRoutes = require('./routes/sessions');
+const dashboardRoutes = require('./routes/dashboard');
+const activityAuditRoutes = require('./routes/activityAudit');
 const { sessionMiddleware } = require('./middleware/sessionManager');
 const notificationRoutes = require('./routes/notifications');
+const FraudWebSocketServer = require('./services/fraudWebSocket');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
 
 // Security middleware
 app.use(helmet());
@@ -39,6 +49,16 @@ if (process.env.NODE_ENV !== 'development') {
 } else {
   console.log('⚠️  Rate limiting disabled in development mode');
 }
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // CORS configuration
 app.use(cors({
@@ -103,6 +123,10 @@ app.use('/api/transaction-otp', require('./routes/transaction-otp'));
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/fraud', require('./routes/fraud'));
+app.use('/api/fraud-detection', require('./routes/fraudDetection'));
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin/activity-audit', activityAuditRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -134,12 +158,25 @@ const startServer = async () => {
     console.log('⚠️  Starting server anyway - database operations may fail');
   }
 
+  // Create HTTP server
+  const server = http.createServer(app);
+
+  // Initialize WebSocket server for fraud monitoring
+  const fraudWS = new FraudWebSocketServer(server);
+  console.log('🔍 Fraud monitoring WebSocket server initialized');
+
+  // Initialize FD Maturity Scheduler
+  const fdScheduler = new FDMaturityScheduler();
+  fdScheduler.start();
+  console.log('📅 FD Maturity Scheduler initialized');
+
   // Start server regardless of database status
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/health`);
     console.log(`🌐 API: http://localhost:${PORT}/api`);
+    console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws/fraud`);
   });
 };
 

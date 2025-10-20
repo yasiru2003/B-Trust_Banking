@@ -65,6 +65,7 @@ class ReportService {
         a.account_number,
         a.acc_type_id,
         at.type_name as account_type,
+        at.interest_rate,
         a.customer_id,
         CONCAT(c.first_name, ' ', c.last_name) as customer_name,
         a.current_balance,
@@ -108,7 +109,7 @@ class ReportService {
     }
 
     query += `
-      GROUP BY a.account_number, a.acc_type_id, at.type_name, a.customer_id,
+      GROUP BY a.account_number, a.acc_type_id, at.type_name, at.interest_rate, a.customer_id,
                c.first_name, c.last_name, a.current_balance, a.opening_date,
                a.status, b.name
     `;

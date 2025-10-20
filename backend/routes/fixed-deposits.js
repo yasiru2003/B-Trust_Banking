@@ -23,11 +23,9 @@ const fdClosureSchema = Joi.object({
 router.get('/types', verifyToken, requireAgent, async (req, res) => {
   try {
     const query = `
-      SELECT fd_type_id, type_name, description, minimum_amount, maximum_amount, 
-             interest_rate, tenure_months, penalty_rate, auto_renewal
+      SELECT fd_type_id, duration_months, interest_rate
       FROM fd_type 
-      WHERE status = true
-      ORDER BY tenure_months, interest_rate DESC
+      ORDER BY duration_months, interest_rate DESC
     `;
     
     const result = await db.query(query);
@@ -53,16 +51,31 @@ router.get('/', verifyToken, requireAgent, async (req, res) => {
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT fd.*, ft.type_name, ft.interest_rate as standard_rate,
+      SELECT fd.*, 
+             ft.duration_months, ft.interest_rate as standard_rate,
              c.first_name, c.last_name, c.phone_number,
              CONCAT(c.first_name, ' ', c.last_name) as customer_name,
              a.account_number as source_account,
-             e.employee_name as agent_name
+             e.employee_name as agent_name,
+             -- Calculate next payout date (simplified - use maturity date for now)
+             fd.maturity_date as next_payout_date,
+             -- Calculate total interest accrued so far
+             COALESCE((
+               SELECT SUM(interest_amount) 
+               FROM fd_interest_accrual 
+               WHERE fd_number = fd.fd_number
+             ), 0) as total_interest_accrued,
+             -- Calculate days until maturity (simplified)
+             CASE 
+               WHEN fd.maturity_date > CURRENT_DATE THEN 
+                 (fd.maturity_date - CURRENT_DATE)::text
+               ELSE '0'
+             END as days_until_payout
       FROM fixed_deposit fd
       LEFT JOIN fd_type ft ON fd.fd_type_id = ft.fd_type_id
-      LEFT JOIN customer c ON fd.customer_id = c.customer_id
-      LEFT JOIN account a ON fd.source_account_number = a.account_number
-      LEFT JOIN employee_auth e ON fd.agent_id = e.employee_id
+      LEFT JOIN account a ON fd.account_number = a.account_number
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      LEFT JOIN employee_auth e ON c.agent_id = e.employee_id
       WHERE 1=1
     `;
     
@@ -75,7 +88,7 @@ router.get('/', verifyToken, requireAgent, async (req, res) => {
       conditions.push(`TRIM(c.agent_id) = $${++paramCount}`);
       params.push(req.user.employee_id.trim());
     } else if (req.user.role === 'Manager') {
-      conditions.push(`fd.branch_id = $${++paramCount}`);
+      conditions.push(`a.branch_id = $${++paramCount}`);
       params.push(req.user.branch_id);
     }
 
@@ -108,7 +121,8 @@ router.get('/', verifyToken, requireAgent, async (req, res) => {
     let countQuery = `
       SELECT COUNT(*) as total
       FROM fixed_deposit fd
-      LEFT JOIN customer c ON fd.customer_id = c.customer_id
+      LEFT JOIN account a ON fd.account_number = a.account_number
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
       WHERE 1=1
     `;
     
@@ -120,7 +134,7 @@ router.get('/', verifyToken, requireAgent, async (req, res) => {
       countConditions.push(`TRIM(c.agent_id) = $${++countParamCount}`);
       countParams.push(req.user.employee_id.trim());
     } else if (req.user.role === 'Manager') {
-      countConditions.push(`fd.branch_id = $${++countParamCount}`);
+      countConditions.push(`a.branch_id = $${++countParamCount}`);
       countParams.push(req.user.branch_id);
     }
 
@@ -634,6 +648,236 @@ router.get('/customer/:customerId', verifyToken, requireAgent, async (req, res) 
     res.status(500).json({
       success: false,
       message: 'Failed to fetch customer FDs'
+    });
+  }
+});
+
+// GET /api/fixed-deposits/:fdNumber/interest-history - Get interest history for a specific FD
+router.get('/:fdNumber/interest-history', verifyToken, requireAgent, async (req, res) => {
+  try {
+    const query = `
+      SELECT ia.*, fd.balance_after as principal_amount, fd.interest_calc_cycle
+      FROM fd_interest_accrual ia
+      LEFT JOIN fixed_deposit fd ON ia.fd_number = fd.fd_number
+      WHERE ia.fd_number = $1
+      ORDER BY ia.accrual_date DESC
+    `;
+    
+    const result = await db.query(query, [req.params.fdNumber]);
+    
+    // Check if agent has access to this FD
+    if (req.user.role === 'Agent') {
+      const fdCheck = await db.query(`
+        SELECT c.agent_id 
+        FROM fixed_deposit fd
+        LEFT JOIN account a ON fd.account_number = a.account_number
+        LEFT JOIN customer c ON a.customer_id = c.customer_id
+        WHERE fd.fd_number = $1
+      `, [req.params.fdNumber]);
+      
+      if (fdCheck.rows.length === 0 || 
+          fdCheck.rows[0].agent_id.trim() !== req.user.employee_id.trim()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied - not your customer'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Get FD interest history error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch FD interest history'
+    });
+  }
+});
+
+// GET /api/fixed-deposits/admin/stats - Get FD statistics for admin panel
+router.get('/admin/stats', verifyToken, requireAgent, async (req, res) => {
+  try {
+    // Only allow Admin and Manager roles
+    if (req.user.role !== 'Admin' && req.user.role !== 'Manager') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied - Admin/Manager role required'
+      });
+    }
+
+    const { startDate, endDate } = req.query;
+    
+    let dateFilter = '';
+    let params = [];
+    
+    if (startDate && endDate) {
+      dateFilter = 'AND ia.accrual_date BETWEEN $1 AND $2';
+      params = [startDate, endDate];
+    }
+
+    const statsQuery = `
+      SELECT 
+        -- Total FD funds
+        (SELECT COALESCE(SUM(balance_after), 0) FROM fixed_deposit) as total_fd_funds,
+        
+        -- Total active FDs
+        (SELECT COUNT(*) FROM fixed_deposit) as total_active_fds,
+        
+        -- Next payout stats for given period
+        COALESCE(SUM(
+          CASE 
+            WHEN fd.interest_calc_cycle = 'MONTHLY' THEN 
+              fd.balance_after * (ft.interest_rate/100.0) / 12.0
+            WHEN fd.interest_calc_cycle = 'QUARTERLY' THEN 
+              fd.balance_after * (ft.interest_rate/100.0) / 4.0
+            WHEN fd.interest_calc_cycle = 'ANNUAL' THEN 
+              fd.balance_after * (ft.interest_rate/100.0)
+            ELSE fd.balance_after * (ft.interest_rate/100.0) / 12.0
+          END
+        ), 0) as next_payout_total,
+        
+        -- Total interest paid in period
+        COALESCE(SUM(ia.interest_amount), 0) as total_interest_paid,
+        
+        -- Count of FDs with payouts in period
+        COUNT(DISTINCT fd.fd_number) as fds_with_payouts,
+        
+        -- Average interest rate
+        COALESCE(AVG(ft.interest_rate), 0) as avg_interest_rate
+        
+      FROM fixed_deposit fd
+      LEFT JOIN fd_type ft ON fd.fd_type_id = ft.fd_type_id
+      LEFT JOIN fd_interest_accrual ia ON fd.fd_number = ia.fd_number
+      WHERE 1=1 ${dateFilter}
+    `;
+
+    const result = await db.query(statsQuery, params);
+    const stats = result.rows[0];
+
+    // Get upcoming payouts for the next 30 days
+    const upcomingPayoutsQuery = `
+      SELECT 
+        fd.fd_number,
+        fd.balance_after,
+        ft.interest_rate,
+        fd.interest_calc_cycle,
+        CASE 
+          WHEN fd.interest_calc_cycle = 'MONTHLY' THEN 
+            DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' + INTERVAL '1 day'
+          WHEN fd.interest_calc_cycle = 'QUARTERLY' THEN 
+            DATE_TRUNC('quarter', CURRENT_DATE) + INTERVAL '3 months' + INTERVAL '1 day'
+          WHEN fd.interest_calc_cycle = 'ANNUAL' THEN 
+            DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year' + INTERVAL '1 day'
+          ELSE fd.maturity_date
+        END as next_payout_date,
+        CASE 
+          WHEN fd.interest_calc_cycle = 'MONTHLY' THEN 
+            fd.balance_after * (ft.interest_rate/100.0) / 12.0
+          WHEN fd.interest_calc_cycle = 'QUARTERLY' THEN 
+            fd.balance_after * (ft.interest_rate/100.0) / 4.0
+          WHEN fd.interest_calc_cycle = 'ANNUAL' THEN 
+            fd.balance_after * (ft.interest_rate/100.0)
+          ELSE fd.balance_after * (ft.interest_rate/100.0) / 12.0
+        END as payout_amount
+      FROM fixed_deposit fd
+      LEFT JOIN fd_type ft ON fd.fd_type_id = ft.fd_type_id
+      WHERE (
+        CASE 
+          WHEN fd.interest_calc_cycle = 'MONTHLY' THEN 
+            DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month' + INTERVAL '1 day'
+          WHEN fd.interest_calc_cycle = 'QUARTERLY' THEN 
+            DATE_TRUNC('quarter', CURRENT_DATE) + INTERVAL '3 months' + INTERVAL '1 day'
+          WHEN fd.interest_calc_cycle = 'ANNUAL' THEN 
+            DATE_TRUNC('year', CURRENT_DATE) + INTERVAL '1 year' + INTERVAL '1 day'
+          ELSE fd.maturity_date
+        END
+      ) BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+      ORDER BY next_payout_date ASC
+    `;
+
+    const upcomingResult = await db.query(upcomingPayoutsQuery);
+
+    res.json({
+      success: true,
+      data: {
+        ...stats,
+        upcoming_payouts: upcomingResult.rows
+      }
+    });
+  } catch (error) {
+    console.error('Get FD admin stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch FD admin statistics'
+    });
+  }
+});
+
+// POST /api/fixed-deposits/admin/check-maturity - Manual FD maturity check (Admin/Manager only)
+router.post('/admin/check-maturity', verifyToken, requireAgent, async (req, res) => {
+  try {
+    // Only allow Admin and Manager roles
+    if (req.user.role !== 'Admin' && req.user.role !== 'Manager') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied - Admin/Manager role required'
+      });
+    }
+
+    const FDMaturityService = require('../services/fdMaturityService');
+    
+    // Check for matured FDs
+    const maturedCount = await FDMaturityService.checkMaturedFDs();
+    
+    // Check for upcoming maturities
+    const upcomingCount = await FDMaturityService.checkUpcomingFDMaturities();
+
+    res.json({
+      success: true,
+      message: 'FD maturity check completed',
+      data: {
+        matured_fds: maturedCount,
+        upcoming_fds: upcomingCount,
+        total_processed: maturedCount + upcomingCount
+      }
+    });
+  } catch (error) {
+    console.error('Manual FD maturity check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to perform FD maturity check'
+    });
+  }
+});
+
+// POST /api/fixed-deposits/admin/simulate-maturity/:fdNumber - Simulate FD maturity for testing
+router.post('/admin/simulate-maturity/:fdNumber', verifyToken, requireAgent, async (req, res) => {
+  try {
+    // Only allow Admin and Manager roles
+    if (req.user.role !== 'Admin' && req.user.role !== 'Manager') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied - Admin/Manager role required'
+      });
+    }
+
+    const FDMaturityService = require('../services/fdMaturityService');
+    
+    const fd = await FDMaturityService.simulateFDMaturity(req.params.fdNumber);
+
+    res.json({
+      success: true,
+      message: 'FD maturity simulation completed',
+      data: fd
+    });
+  } catch (error) {
+    console.error('FD maturity simulation error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to simulate FD maturity'
     });
   }
 });

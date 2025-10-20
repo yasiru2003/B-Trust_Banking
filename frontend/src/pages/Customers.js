@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Edit, Trash2, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, CheckCircle, XCircle, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -15,11 +15,29 @@ const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
   const [page, setPage] = useState(1);
+  const [agents, setAgents] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [txCustomer, setTxCustomer] = useState(null);
+
+  // Load agents for manager filter
+  useEffect(() => {
+    const loadAgents = async () => {
+      try {
+        if (user?.role === 'Manager') {
+          const res = await api.get('/manager/agents');
+          if (res.data?.success) setAgents(res.data.data || []);
+        }
+      } catch (e) {
+        // silent
+      }
+    };
+    loadAgents();
+  }, [user?.role]);
 
   // Fetch customers
   const { data: customersData, isLoading } = useQuery({
-    queryKey: ['customers', page, searchTerm, filters],
+    queryKey: ['customers', page, searchTerm, filters, user?.role],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -34,6 +52,18 @@ const Customers = () => {
       const response = await api.get(`/customers?${params}`);
       return response.data;
     },
+    placeholderData: (previousData) => previousData,
+  });
+
+  // Customer recent activity (for View modal)
+  const { data: customerActivityData, isLoading: txLoading } = useQuery({
+    queryKey: ['customer-activity', txCustomer?.customer_id],
+    queryFn: async () => {
+      const params = new URLSearchParams({ customer_id: txCustomer.customer_id });
+      const response = await api.get(`/customers/recent-activity?${params.toString()}`);
+      return response.data;
+    },
+    enabled: !!isTxModalOpen && !!txCustomer?.customer_id,
     placeholderData: (previousData) => previousData,
   });
 
@@ -116,12 +146,9 @@ const Customers = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="grid grid-cols-1 md:grid-cols-${user?.role === 'Manager' ? '3' : '4'} gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search
-            </label>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -129,39 +156,29 @@ const Customers = () => {
                 placeholder="Search customers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input pl-10"
+                className="input pl-10 w-full"
               />
             </div>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              KYC Status
-            </label>
+          <div className="flex-1">
             <select
               value={filters.kyc_status || ''}
               onChange={(e) => setFilters({ ...filters, kyc_status: e.target.value })}
-              className="input"
+              className="input w-full"
             >
-              <option value="">All</option>
-              <option value="true">Verified</option>
-              <option value="false">Not Verified</option>
+              <option value="">All KYC Status</option>
+              <option value="true">✅ Verified</option>
+              <option value="false">❌ Pending</option>
             </select>
           </div>
 
-          {(() => {
-            console.log('User role:', user?.role);
-            console.log('User object:', user);
-            return user?.role !== 'Agent' && user?.role !== 'Manager';
-          })() && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Branch
-              </label>
+          {user?.role !== 'Agent' && user?.role !== 'Manager' && (
+            <div className="flex-1">
               <select
                 value={filters.branch_id || ''}
                 onChange={(e) => setFilters({ ...filters, branch_id: e.target.value })}
-                className="input"
+                className="input w-full"
               >
                 <option value="">All Branches</option>
                 <option value="1">Main Branch</option>
@@ -170,21 +187,44 @@ const Customers = () => {
             </div>
           )}
 
-          <div className="flex items-end">
+          {user?.role === 'Manager' && (
+            <div className="flex-1">
+              <select
+                value={filters.agent_id || ''}
+                onChange={(e) => setFilters({ ...filters, agent_id: e.target.value })}
+                className="input w-full"
+              >
+                <option value="">All Agents</option>
+                {agents.map(a => (
+                  <option key={a.employee_id} value={a.employee_id}>{a.employee_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
             <button
-              onClick={() => setFilters({})}
-              className="btn btn-outline w-full"
+              onClick={() => {
+                setFilters({});
+                setSearchTerm('');
+              }}
+              className="btn btn-outline"
             >
               <Filter className="h-4 w-4 mr-2" />
-              Clear Filters
+              Apply Filters
             </button>
           </div>
         </div>
       </div>
 
-      {/* Customers Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        {isLoading ? (
+      {/* Customers Table / Empty State */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        {Array.isArray(customers) && customers.length === 0 ? (
+          <div className="p-12 text-center">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Customers</h3>
+            <p className="text-gray-600 dark:text-gray-300">You don't have any assigned customers yet.</p>
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center h-64">
             <LoadingSpinner size="xl" />
           </div>
@@ -253,7 +293,14 @@ const Customers = () => {
                       </td>
                       <td className="table-cell">
                         <div className="flex space-x-2">
-                          <button className="btn btn-ghost btn-sm" title="View Customer">
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            title="View Recent Activity"
+                            onClick={() => {
+                              setTxCustomer(customer);
+                              setIsTxModalOpen(true);
+                            }}
+                          >
                             <Eye className="h-4 w-4" />
                           </button>
                           {user?.role === 'Agent' && hasPermission('update_customer') && (
@@ -297,15 +344,45 @@ const Customers = () => {
               </table>
             </div>
 
-            {/* Pagination */}
-            {customers.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No customers found</p>
-              </div>
-            )}
+            {/* No longer render inline empty; handled above */}
           </>
         )}
       </div>
+
+    {/* View Customer Transactions Modal */}
+    <Modal
+      isOpen={isTxModalOpen}
+      onClose={() => setIsTxModalOpen(false)}
+      title={txCustomer ? `Recent Activity - ${txCustomer.first_name} ${txCustomer.last_name}` : 'Recent Activity'}
+      size="xl"
+    >
+      {txCustomer && (
+        <div className="space-y-4">
+          {/* Activity list */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+            {txLoading ? (
+              <div className="flex items-center justify-center h-48"><LoadingSpinner /></div>
+            ) : (customerActivityData?.data || []).length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 dark:text-gray-400">No recent activity</p>
+              </div>
+            ) : (
+              <div className="p-4 space-y-3">
+                {(customerActivityData?.data || []).map((a, idx) => (
+                  <div key={idx} className="flex items-start justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{a.message}</div>
+                      {a.details && <div className="text-xs text-gray-600 dark:text-gray-300">{a.details}</div>}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{a.time || ''}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
 
       {/* Add Customer Modal */}
       <Modal

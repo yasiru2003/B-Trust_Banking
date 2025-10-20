@@ -15,13 +15,15 @@ import {
   Settings,
   Eye,
   Lock,
-  Unlock
+  Unlock,
+  BarChart3
 } from 'lucide-react';
 import api from '../services/authService';
 import LoadingSpinner from './LoadingSpinner';
 import SessionManagement from './SessionManagement';
 import DeviceManagement from './DeviceManagement';
 import SecurityMonitoring from './SecurityMonitoring';
+import ActivityAudit from './ActivityAudit';
 
 const AdminDashboard = () => {
   const [selectedView, setSelectedView] = useState('overview');
@@ -37,6 +39,8 @@ const AdminDashboard = () => {
       setSelectedView('devices');
     } else if (path.includes('/admin/security')) {
       setSelectedView('security');
+    } else if (path.includes('/admin/audit')) {
+      setSelectedView('audit');
     } else {
       setSelectedView('overview');
     }
@@ -77,6 +81,7 @@ const AdminDashboard = () => {
     { id: 'sessions', name: 'Session Management', icon: Monitor },
     { id: 'devices', name: 'Device Management', icon: Smartphone },
     { id: 'security', name: 'Security Monitoring', icon: Shield },
+    { id: 'audit', name: 'Activity Audit', icon: BarChart3 },
   ];
 
   const getGreeting = () => {
@@ -329,6 +334,11 @@ const AdminDashboard = () => {
           {/* Security Monitoring Tab */}
           {selectedView === 'security' && (
             <SecurityMonitoring />
+          )}
+
+          {/* Activity Audit Tab */}
+          {selectedView === 'audit' && (
+            <ActivityAudit />
           )}
         </div>
       </div>

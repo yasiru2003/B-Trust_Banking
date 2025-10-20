@@ -6,6 +6,7 @@ class FilebaseService {
     this.client = new S3Client({
       endpoint: 'https://s3.filebase.com',
       region: 'us-east-1',
+      forcePathStyle: true, // Filebase prefers path-style URLs
       credentials: {
         accessKeyId: process.env.FILEBASE_ACCESS_KEY || 'A91EA88E68309BAA9947',
         secretAccessKey: process.env.FILEBASE_SECRET_KEY || 'zYRybpwviMvGRwhvptYmAvnJYmfUwSJTUscXq0iF'
@@ -113,24 +114,15 @@ class FilebaseService {
     }
   }
 
-  // Get signed URL for customer photo (for private access)
+  // Get URL for customer photo. We upload with public-read, so return stable public URL.
   async getCustomerPhotoUrl(customerId, expiresIn = 3600) {
     try {
       // Trim customer ID to handle CHAR column padding
       const trimmedCustomerId = customerId.trim();
       const key = `customers/${trimmedCustomerId}/photo.jpg`;
-      
-      const command = new GetObjectCommand({
-        Bucket: this.bucketName,
-        Key: key
-      });
 
-      const signedUrl = await getSignedUrl(this.client, command, { expiresIn });
-      
-      return {
-        success: true,
-        url: signedUrl
-      };
+      const publicUrl = `https://s3.filebase.com/${this.bucketName}/${encodeURIComponent(key)}`;
+      return { success: true, url: publicUrl };
     } catch (error) {
       console.error('Filebase get URL error:', error);
       return {

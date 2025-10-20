@@ -1,49 +1,35 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+require('dotenv').config({ path: './config.env' });
 
-// Database configuration (supports either discrete vars or DATABASE_URL)
-let dbConfig;
+// Database configuration
+const dbConfig = {
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: process.env.DB_SSL === 'true' ? { 
+    rejectUnauthorized: false,
+    sslmode: 'require'
+  } : false,
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+};
 
-if (process.env.DATABASE_URL) {
-  // Prefer a single connection string when provided (e.g., Neon)
-  dbConfig = {
-    connectionString: process.env.DATABASE_URL,
-    ssl: { 
-      rejectUnauthorized: false,
-      checkServerIdentity: () => undefined // Disable hostname verification
-    },
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 15000,
-  };
-}
+// Create connection pool
+const pool = new Pool(dbConfig);
 
-if (!dbConfig) {
-  dbConfig = {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    ssl: process.env.DB_SSL === 'true' ? { 
-      rejectUnauthorized: false,
-    } : false,
-    max: 20, // Maximum number of clients in the pool
-    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-    connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
-  };
-}
+// Handle pool errors
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
+});
 
 // Database connection class
 class Database {
   constructor() {
-    this.pool = new Pool(dbConfig);
-    
-    // Handle pool errors
-    this.pool.on('error', (err) => {
-      console.error('Unexpected error on idle client', err);
-      process.exit(-1);
-    });
+    this.pool = pool;
   }
 
   // Test database connection

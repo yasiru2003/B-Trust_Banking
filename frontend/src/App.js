@@ -27,6 +27,7 @@ import PhoneVerificationTest from './pages/PhoneVerificationTest';
 import TransactionOTPTest from './pages/TransactionOTPTest';
 import AdminTest from './pages/AdminTest';
 import AdminDashboard from './components/AdminDashboard';
+import ActivityAuditPage from './pages/ActivityAuditPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -80,6 +81,7 @@ function App() {
                   <Route path="admin/sessions" element={<AdminDashboard />} />
                   <Route path="admin/devices" element={<AdminDashboard />} />
                   <Route path="admin/security" element={<AdminDashboard />} />
+                  <Route path="admin/audit" element={<ActivityAuditPage />} />
                   <Route path="admin/dashboard" element={<AdminDashboard />} />
                 </Route>
                 

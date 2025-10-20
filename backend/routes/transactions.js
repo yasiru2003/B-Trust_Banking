@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
 const { hasPermission, checkTransactionLimit, canAccessCustomer } = require('../middleware/permissions');
-const { verifyToken, requireAgent, requireBranchAccess } = require('../middleware/auth');
+const { verifyToken, requireAgent, requireBranchAccess, requireEmployee } = require('../middleware/auth');
 const smsService = require('../services/smsService');
 const NotificationService = require('../services/notificationService');
 const Joi = require('joi');
@@ -52,6 +52,11 @@ router.get('/', hasPermission('view_all_transactions'), async (req, res) => {
     }
 
     // Add filters
+    if (req.query.customer_id) {
+      conditions.push(`c.customer_id = $${++paramCount}`);
+      params.push(req.query.customer_id);
+    }
+
     if (req.query.account_number) {
       conditions.push(`t.account_number = $${++paramCount}`);
       params.push(req.query.account_number);
@@ -129,7 +134,7 @@ router.get('/', hasPermission('view_all_transactions'), async (req, res) => {
 
 
 // GET /api/transactions/stats - Get transaction statistics
-router.get('/stats', hasPermission('view_all_transactions'), async (req, res) => {
+router.get('/stats', verifyToken, requireEmployee, async (req, res) => {
   try {
     let query = `
       SELECT 
@@ -360,7 +365,7 @@ router.post('/', verifyToken, requireAgent, checkTransactionLimit, async (req, r
 
     // Check if account exists and is active
     const accountResult = await client.query(
-      'SELECT * FROM account WHERE account_number = $1',
+      'SELECT * FROM account WHERE TRIM(account_number) = TRIM($1)',
       [value.account_number]
     );
     
@@ -437,14 +442,14 @@ router.post('/', verifyToken, requireAgent, checkTransactionLimit, async (req, r
       }
     }
 
-    // Calculate new balance
-    let newBalance;
+    // Calculate expected balance (for response/SMS only). DB trigger will perform the actual update.
+    let expectedBalance;
     if (value.transaction_type_id === 'DEP001') {
-      newBalance = currentBalance + transactionAmount;
+      expectedBalance = currentBalance + transactionAmount;
     } else if (value.transaction_type_id === 'WIT001') {
-      newBalance = currentBalance - transactionAmount;
+      expectedBalance = currentBalance - transactionAmount;
     } else {
-      newBalance = currentBalance; // For other transaction types
+      expectedBalance = currentBalance; // For other transaction types
     }
 
     // Check if transaction requires OTP (over 5,000 LKR)
@@ -463,11 +468,10 @@ router.post('/', verifyToken, requireAgent, checkTransactionLimit, async (req, r
       });
     }
 
-    // Check if transaction requires approval
-    let status = true; // Default to approved
-    if (req.requiresApproval && !req.body.otpVerified) {
-      status = false; // Requires manager approval (unless OTP verified)
-    }
+    // Auto-approve transactions at creation time (frontend requirement)
+    // Status is set to true so the DB trigger applies balance updates immediately
+    let status = true;
+    let requiresManagerApproval = false;
 
     // Generate transaction ID
     const timestamp = Date.now().toString();
@@ -500,24 +504,56 @@ router.post('/', verifyToken, requireAgent, checkTransactionLimit, async (req, r
 
     const newTransaction = transactionResult.rows[0];
 
-    // Update account balance only if transaction is approved
+    // If approved within this transaction, let the DB trigger update the balance; then read the updated balance
+    let responseBalance = currentBalance;
     if (status) {
-      await client.query(
-        'UPDATE account SET current_balance = $1, updated_at = CURRENT_TIMESTAMP WHERE account_number = $2',
-        [newBalance, value.account_number]
+      const balanceRes = await client.query(
+        'SELECT current_balance FROM account WHERE TRIM(account_number) = TRIM($1)',
+        [value.account_number]
       );
+      responseBalance = parseFloat(balanceRes.rows[0]?.current_balance || 0);
     }
 
     await client.query('COMMIT');
 
-    // Send detailed SMS notification to customer using text.lk
+    // Run fraud detection on the new transaction
+    try {
+      const fraudDetectionService = require('../services/fraudDetectionService');
+      
+      // Prepare transaction data for fraud detection
+      const transactionForFraudDetection = {
+        ...newTransaction,
+        customer_id: account.customer_id,
+        transaction_type_id: transactionTypeId
+      };
+      
+      // Run fraud detection asynchronously (don't block transaction response)
+      fraudDetectionService.analyzeTransaction(transactionForFraudDetection)
+        .then(alerts => {
+          if (alerts.length > 0) {
+            console.log(`🚨 Fraud detection generated ${alerts.length} alerts for transaction ${transactionId}`);
+            // Broadcast fraud alerts via WebSocket
+            const FraudWebSocketServer = require('../services/fraudWebSocket');
+            FraudWebSocketServer.broadcastFraudAlert(alerts[0]);
+          }
+        })
+        .catch(error => {
+          console.error('Fraud detection error:', error);
+          // Don't fail the transaction if fraud detection fails
+        });
+    } catch (fraudError) {
+      console.error('Fraud detection service error:', fraudError);
+      // Don't fail the transaction if fraud detection fails
+    }
+
+    // Send detailed SMS notification only for approved transactions
     if (status && value.customer_phone) {
       try {
         const transactionDetails = {
           type: value.transaction_type_id,
           amount: transactionAmount,
           accountNumber: value.account_number,
-          balance: newBalance,
+          balance: status ? responseBalance : expectedBalance,
           reference: value.reference,
           timestamp: new Date().toLocaleString('en-LK', { timeZone: 'Asia/Colombo' })
         };
@@ -573,11 +609,11 @@ router.post('/', verifyToken, requireAgent, checkTransactionLimit, async (req, r
 
     res.status(201).json({
       success: true,
-      message: status ? 'Transaction completed successfully' : 'Transaction submitted for approval',
+      message: 'Transaction completed successfully',
       data: {
         ...newTransaction,
-        new_balance: status ? newBalance : currentBalance,
-        requires_approval: req.requiresApproval
+        new_balance: status ? responseBalance : currentBalance,
+        requires_approval: false
       }
     });
   } catch (error) {
@@ -623,31 +659,31 @@ router.put('/:id/approve', hasPermission('approve_large_transactions'), async (r
       });
     }
 
-    // Update account balance
-    await client.query(
-      'UPDATE savings_account SET current_balance = $1, updated_at = CURRENT_TIMESTAMP WHERE account_number = $2',
-      [newBalance, transaction.account_number]
-    );
-
-    // Approve transaction
+    // Approve transaction (DB trigger will update account balance)
     await client.query(
       'UPDATE transaction SET status = true, updated_at = CURRENT_TIMESTAMP WHERE transaction_id = $1',
       [req.params.id]
     );
 
+    // Read updated balance post-trigger
+    const accountBalRes = await client.query(
+      'SELECT current_balance, customer_id FROM account WHERE TRIM(account_number) = TRIM($1)',
+      [transaction.account_number]
+    );
+    if (accountBalRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+    const newBalance = parseFloat(accountBalRes.rows[0].current_balance || 0);
+
     await client.query('COMMIT');
 
     // Send detailed SMS notification to customer using text.lk
     try {
-      const accountResult = await db.query(
-        'SELECT customer_id, current_balance FROM account WHERE account_number = $1',
-        [transaction.account_number]
-      );
-      
-      if (accountResult.rows.length > 0) {
+      if (accountBalRes.rows.length > 0) {
         const customerResult = await db.query(
           'SELECT phone_number FROM customer WHERE customer_id = $1',
-          [accountResult.rows[0].customer_id]
+          [accountBalRes.rows[0].customer_id]
         );
         
         if (customerResult.rows.length > 0) {
@@ -655,7 +691,7 @@ router.put('/:id/approve', hasPermission('approve_large_transactions'), async (r
             type: transaction.transaction_type_id,
             amount: transaction.amount,
             accountNumber: transaction.account_number,
-            balance: accountResult.rows[0].current_balance,
+            balance: newBalance,
             reference: transaction.reference,
             timestamp: new Date().toLocaleString('en-LK', { timeZone: 'Asia/Colombo' })
           };

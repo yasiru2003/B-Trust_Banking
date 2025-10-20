@@ -7,6 +7,7 @@ const { verifyToken, requireManager, requireBranchAccess } = require('../middlew
 router.get('/dashboard', verifyToken, requireManager, async (req, res) => {
   try {
     const branchId = req.user.branch_id;
+    const { start_date, end_date } = req.query;
     
     // Get branch information
     const branchQuery = `
@@ -55,9 +56,14 @@ router.get('/dashboard', verifyToken, requireManager, async (req, res) => {
       LEFT JOIN transaction t ON t.agent_id = e.employee_id
       LEFT JOIN customer c ON c.agent_id = e.employee_id
       WHERE b.branch_id = $1
+      ${start_date ? 'AND t.date >= $2' : ''}
+      ${end_date ? `AND t.date <= ${start_date ? '$3' : '$2'}` : ''}
     `;
     
-    const statsResult = await db.query(statsQuery, [branchId]);
+    const statsParams = [branchId];
+    if (start_date) statsParams.push(start_date);
+    if (end_date) statsParams.push(end_date);
+    const statsResult = await db.query(statsQuery, statsParams);
     const stats = statsResult.rows[0];
     
     // Get recent transactions
@@ -72,11 +78,12 @@ router.get('/dashboard', verifyToken, requireManager, async (req, res) => {
       LEFT JOIN employee_auth e ON t.agent_id = e.employee_id
       LEFT JOIN branch b ON e.branch_id = b.branch_id
       WHERE e.branch_id = $1
+      ${start_date ? 'AND t.date >= $2' : ''}
+      ${end_date ? `AND t.date <= ${start_date ? '$3' : '$2'}` : ''}
       ORDER BY t.date DESC
       LIMIT 10
     `;
-    
-    const recentTransactionsResult = await db.query(recentTransactionsQuery, [branchId]);
+    const recentTransactionsResult = await db.query(recentTransactionsQuery, statsParams);
     
     // Get top agents by transaction count
     const topAgentsQuery = `
@@ -86,12 +93,27 @@ router.get('/dashboard', verifyToken, requireManager, async (req, res) => {
       FROM employee_auth e
       LEFT JOIN transaction t ON e.employee_id = t.agent_id
       WHERE e.branch_id = $1 AND e.role = 'Agent' AND e.status = true
+      ${start_date ? 'AND t.date >= $2' : ''}
+      ${end_date ? `AND t.date <= ${start_date ? '$3' : '$2'}` : ''}
       GROUP BY e.employee_id, e.employee_name
       ORDER BY transaction_count DESC
       LIMIT 5
     `;
-    
-    const topAgentsResult = await db.query(topAgentsQuery, [branchId]);
+    const topAgentsResult = await db.query(topAgentsQuery, statsParams);
+
+    // Aggregate transactions by type for the selected period
+    const txByTypeQuery = `
+      SELECT tt.type_name, COUNT(t.transaction_id) as count, COALESCE(SUM(t.amount),0) as total_amount
+      FROM transaction t
+      LEFT JOIN transaction_type tt ON t.transaction_type_id = tt.transaction_type_id
+      LEFT JOIN employee_auth e ON t.agent_id = e.employee_id
+      WHERE e.branch_id = $1
+      ${start_date ? 'AND t.date >= $2' : ''}
+      ${end_date ? `AND t.date <= ${start_date ? '$3' : '$2'}` : ''}
+      GROUP BY tt.type_name
+      ORDER BY count DESC
+    `;
+    const txByTypeResult = await db.query(txByTypeQuery, statsParams);
     
     res.json({
       success: true,
@@ -128,7 +150,8 @@ router.get('/dashboard', verifyToken, requireManager, async (req, res) => {
           }
         },
         recent_transactions: recentTransactionsResult.rows,
-        top_agents: topAgentsResult.rows
+        top_agents: topAgentsResult.rows,
+        transactions_by_type: txByTypeResult.rows
       }
     });
     
@@ -175,6 +198,131 @@ router.get('/agents', verifyToken, requireManager, async (req, res) => {
   }
 });
 
+// Freeze an agent (disable status) within manager's branch
+router.put('/agents/:agentId/freeze', verifyToken, requireManager, async (req, res) => {
+  try {
+    const branchId = req.user.branch_id;
+    const { agentId } = req.params;
+
+    // Ensure agent belongs to this branch and is Agent role
+  const check = await db.query(
+      `SELECT employee_id, status FROM employee_auth 
+       WHERE LOWER(TRIM(employee_id)) = LOWER(TRIM($1)) 
+         AND LOWER(TRIM(branch_id)) = LOWER(TRIM($2)) 
+         AND role = 'Agent'`,
+      [agentId, branchId]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Agent not found in your branch' });
+    }
+
+    if (check.rows[0].status === false) {
+      return res.status(400).json({ success: false, message: 'Agent is already frozen' });
+    }
+
+    await db.query(`UPDATE employee_auth SET status = false WHERE LOWER(TRIM(employee_id)) = LOWER(TRIM($1))`, [agentId]);
+
+    res.json({ success: true, message: 'Agent frozen successfully' });
+  } catch (error) {
+    console.error('Freeze agent error:', error);
+    res.status(500).json({ success: false, message: 'Failed to freeze agent' });
+  }
+});
+
+// Alias: support singular path as well
+router.put('/agent/:agentId/freeze', verifyToken, requireManager, async (req, res) => {
+  try {
+    const branchId = req.user.branch_id;
+    const { agentId } = req.params;
+
+    const check = await db.query(
+      `SELECT employee_id, status FROM employee_auth 
+       WHERE LOWER(TRIM(employee_id)) = LOWER(TRIM($1)) 
+         AND LOWER(TRIM(branch_id)) = LOWER(TRIM($2)) 
+         AND role = 'Agent'`,
+      [agentId, branchId]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Agent not found in your branch' });
+    }
+
+    if (check.rows[0].status === false) {
+      return res.status(400).json({ success: false, message: 'Agent is already frozen' });
+    }
+
+    await db.query(`UPDATE employee_auth SET status = false WHERE LOWER(TRIM(employee_id)) = LOWER(TRIM($1))`, [agentId]);
+
+    res.json({ success: true, message: 'Agent frozen successfully' });
+  } catch (error) {
+    console.error('Freeze agent (alias) error:', error);
+    res.status(500).json({ success: false, message: 'Failed to freeze agent' });
+  }
+});
+
+// Unfreeze an agent (enable status) within manager's branch
+router.put('/agents/:agentId/unfreeze', verifyToken, requireManager, async (req, res) => {
+  try {
+    const branchId = req.user.branch_id;
+    const { agentId } = req.params;
+
+  const check = await db.query(
+      `SELECT employee_id, status FROM employee_auth 
+       WHERE LOWER(TRIM(employee_id)) = LOWER(TRIM($1)) 
+         AND LOWER(TRIM(branch_id)) = LOWER(TRIM($2)) 
+         AND role = 'Agent'`,
+      [agentId, branchId]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Agent not found in your branch' });
+    }
+
+    if (check.rows[0].status === true) {
+      return res.status(400).json({ success: false, message: 'Agent is already active' });
+    }
+
+    await db.query(`UPDATE employee_auth SET status = true WHERE LOWER(TRIM(employee_id)) = LOWER(TRIM($1))`, [agentId]);
+
+    res.json({ success: true, message: 'Agent unfrozen successfully' });
+  } catch (error) {
+    console.error('Unfreeze agent error:', error);
+    res.status(500).json({ success: false, message: 'Failed to unfreeze agent' });
+  }
+});
+
+// Alias: support singular path as well
+router.put('/agent/:agentId/unfreeze', verifyToken, requireManager, async (req, res) => {
+  try {
+    const branchId = req.user.branch_id;
+    const { agentId } = req.params;
+
+    const check = await db.query(
+      `SELECT employee_id, status FROM employee_auth 
+       WHERE LOWER(TRIM(employee_id)) = LOWER(TRIM($1)) 
+         AND LOWER(TRIM(branch_id)) = LOWER(TRIM($2)) 
+         AND role = 'Agent'`,
+      [agentId, branchId]
+    );
+
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Agent not found in your branch' });
+    }
+
+    if (check.rows[0].status === true) {
+      return res.status(400).json({ success: false, message: 'Agent is already active' });
+    }
+
+    await db.query(`UPDATE employee_auth SET status = true WHERE LOWER(TRIM(employee_id)) = LOWER(TRIM($1))`, [agentId]);
+
+    res.json({ success: true, message: 'Agent unfrozen successfully' });
+  } catch (error) {
+    console.error('Unfreeze agent (alias) error:', error);
+    res.status(500).json({ success: false, message: 'Failed to unfreeze agent' });
+  }
+});
+
 // Get all customers in manager's branch
 router.get('/customers', verifyToken, requireManager, async (req, res) => {
   try {
@@ -182,6 +330,7 @@ router.get('/customers', verifyToken, requireManager, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
+    const { agent_id } = req.query;
     
     const query = `
       SELECT c.*, e.employee_name as agent_name,
@@ -191,10 +340,11 @@ router.get('/customers', verifyToken, requireManager, async (req, res) => {
       LEFT JOIN employee_auth e ON c.agent_id = e.employee_id
       LEFT JOIN account a ON c.customer_id = a.customer_id
       WHERE e.branch_id = $1
+      ${agent_id ? 'AND TRIM(c.agent_id) = TRIM($2)' : ''}
       GROUP BY c.customer_id, c.first_name, c.last_name, c.email, c.phone_number, 
                c.date_of_birth, c.gender, c.address, c.agent_id, e.employee_name
       ORDER BY c.first_name, c.last_name
-      LIMIT $2 OFFSET $3
+      LIMIT ${agent_id ? '$3' : '$2'} OFFSET ${agent_id ? '$4' : '$3'}
     `;
     
     const countQuery = `
@@ -202,11 +352,14 @@ router.get('/customers', verifyToken, requireManager, async (req, res) => {
       FROM customer c
       LEFT JOIN employee_auth e ON c.agent_id = e.employee_id
       WHERE e.branch_id = $1
+      ${agent_id ? 'AND TRIM(c.agent_id) = TRIM($2)' : ''}
     `;
     
+    const params = agent_id ? [branchId, agent_id, limit, offset] : [branchId, limit, offset];
+    const countParams = agent_id ? [branchId, agent_id] : [branchId];
     const [result, countResult] = await Promise.all([
-      db.query(query, [branchId, limit, offset]),
-      db.query(countQuery, [branchId])
+      db.query(query, params),
+      db.query(countQuery, countParams)
     ]);
     
     const total = parseInt(countResult.rows[0].total);
@@ -238,29 +391,37 @@ router.get('/accounts', verifyToken, requireManager, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
+    const { agent_id } = req.query;
     
     const query = `
       SELECT a.*, at.type_name as account_type, b.name as branch_name,
              c.first_name, c.last_name, c.phone_number,
-             CONCAT(c.first_name, ' ', c.last_name) as customer_name
+             CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+             e.employee_id as agent_id, e.employee_name as agent_name
       FROM account a
       LEFT JOIN account_type at ON a.acc_type_id = at.acc_type_id
       LEFT JOIN branch b ON a.branch_id = b.branch_id
       LEFT JOIN customer c ON a.customer_id = c.customer_id
+      LEFT JOIN employee_auth e ON TRIM(c.agent_id) = TRIM(e.employee_id)
       WHERE a.branch_id = $1
+      ${agent_id ? 'AND TRIM(c.agent_id) = TRIM($2)' : ''}
       ORDER BY a.opening_date DESC
-      LIMIT $2 OFFSET $3
+      LIMIT ${agent_id ? '$3' : '$2'} OFFSET ${agent_id ? '$4' : '$3'}
     `;
     
     const countQuery = `
       SELECT COUNT(*) as total
       FROM account a
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
       WHERE a.branch_id = $1
+      ${agent_id ? 'AND TRIM(c.agent_id) = TRIM($2)' : ''}
     `;
     
+    const params = agent_id ? [branchId, agent_id, limit, offset] : [branchId, limit, offset];
+    const countParams = agent_id ? [branchId, agent_id] : [branchId];
     const [result, countResult] = await Promise.all([
-      db.query(query, [branchId, limit, offset]),
-      db.query(countQuery, [branchId])
+      db.query(query, params),
+      db.query(countQuery, countParams)
     ]);
     
     const total = parseInt(countResult.rows[0].total);
@@ -343,6 +504,13 @@ router.get('/transactions', verifyToken, requireManager, async (req, res) => {
 });
 
 module.exports = router;
+
+
+
+
+
+
+
 
 
 

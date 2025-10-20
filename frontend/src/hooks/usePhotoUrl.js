@@ -7,24 +7,24 @@ const usePhotoUrl = (customerId, photoUrl) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!customerId || !photoUrl) {
+    // Normalize and trim incoming values
+    const id = customerId?.toString().trim();
+    const rawUrl = photoUrl?.toString().trim();
+
+    if (!id || !rawUrl) {
       setSignedUrl(null);
       return;
     }
 
-    // If it's already a signed URL (contains query parameters), use it directly
-    if (photoUrl.includes('?')) {
-      setSignedUrl(photoUrl);
-      return;
-    }
+    // Always prefer server-provided URL (public Filebase URL), ignore client-provided query strings
 
-    // If it's a direct Filebase URL, get a signed URL
+    // Ask backend for the correct URL (public Filebase URL)
     const getSignedUrl = async () => {
       setLoading(true);
       setError(null);
       
       try {
-        const response = await api.get(`/customers/${customerId}/photo`);
+        const response = await api.get(`/customers/${id}/photo`);
         if (response.data.success) {
           setSignedUrl(response.data.photoUrl);
         } else {
@@ -45,6 +45,7 @@ const usePhotoUrl = (customerId, photoUrl) => {
 };
 
 export default usePhotoUrl;
+
 
 
 

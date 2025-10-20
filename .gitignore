@@ -3,7 +3,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-# Note: package-lock.json and yarn.lock should be committed for consistent installs
+package-lock.json
 
 # Environment variables
 .env
@@ -11,8 +11,20 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
-config.env
-*.env
+backend/config.env
+backend/.env
+
+# Production builds
+frontend/build/
+backend/dist/
+build/
+dist/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
 # Logs
 logs
@@ -22,12 +34,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
@@ -35,19 +41,20 @@ coverage/
 # nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+# Grunt intermediate storage
 .grunt
 
-# Bower dependency directory (https://bower.io/)
+# Bower dependency directory
 bower_components
 
 # node-waf configuration
 .lock-wscript
 
-# Compiled binary addons (https://nodejs.org/api/addons.html)
+# Compiled binary addons
 build/Release
 
 # Dependency directories
+node_modules/
 jspm_packages/
 
 # TypeScript cache
@@ -74,7 +81,7 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# parcel-bundler cache (https://parceljs.org/)
+# parcel-bundler cache
 .cache
 .parcel-cache
 
@@ -85,8 +92,9 @@ jspm_packages/
 .nuxt
 dist
 
-# Gatsby cache (we keep frontend/public tracked)
+# Gatsby files
 .cache/
+public
 
 # Storybook build outputs
 .out
@@ -112,218 +120,59 @@ temp/
 ehthumbs.db
 Thumbs.db
 
-# Python
+# Python cache (for ML server)
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+.venv/
+backend/ml_server/.venv/
+face-auth/.venv/
 
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
+# Machine Learning models
+*.pkl
+*.joblib
+*.h5
+*.model
 
 # Database files
 *.db
 *.sqlite
 *.sqlite3
 
-# ML model files
-*.pkl
-*.joblib
-*.h5
-*.hdf5
-model_iforest.pkl
-
-# Uploaded files
+# Upload directories
 uploads/
 public/uploads/
-customer-photos/
-temp-uploads/
 
 # SSL certificates
 *.pem
 *.key
 *.crt
-*.csr
 
 # Backup files
 *.bak
 *.backup
-*.old
 
 # Test files
 test-results/
 coverage/
 
-# Build outputs
-build/
-dist/
-out/
-
-# IDE specific files
-*.sublime-project
-*.sublime-workspace
-.vscode/settings.json
-.vscode/launch.json
-.vscode/extensions.json
-
-# MacOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# Linux
-*~
-
-# JetBrains IDEs
-.idea/
-*.iml
-*.ipr
-*.iws
-
-# Visual Studio Code
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# Local development
-.local/
-local/
-
-# API keys and secrets
-secrets.json
-api-keys.json
-credentials.json
-
-# Documentation build
-docs/_build/
-
-# Temporary files
-*.tmp
-*.temp
-
-# Log files
-*.log
-logs/
-
-# Cache directories
-.cache/
-cache/
-
-# Generated files
-generated/
-auto-generated/
-
 # Docker
 .dockerignore
-docker-compose.override.yml
 
-# Kubernetes
-*.kubeconfig
+# Deployment files (keep these)
+# .env.production
+# production.env
+# deploy.env
+# render.yaml
+# fly.toml
 
-# Terraform
-*.tfstate
-*.tfstate.*
-.terraform/
-
-# AWS
-.aws/
-
-# Google Cloud
-.gcloud/
-
-# Azure
-.azure/
-
-# Local configuration overrides
-local.config.js
-local.config.json
-
-# Performance monitoring
-.clinic/
-
-# Security
-security-audit.json
-
-# Custom project specific
-customer-data/
-transaction-data/
-reports/
-exports/
-backups/
+# Keep important config files
+!backend/env.example
+!env.production.example

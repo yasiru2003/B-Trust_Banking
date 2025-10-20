@@ -1,0 +1,63 @@
+services:
+  # Backend Service
+  - type: web
+    name: b-trust-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_HOST
+        fromDatabase:
+          name: b-trust-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: b-trust-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: b-trust-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: b-trust-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: b-trust-db
+          property: password
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: "24h"
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: b-trust-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+
+  # Frontend Service
+  - type: web
+    name: b-trust-frontend
+    env: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          type: web
+          name: b-trust-backend
+          envVarKey: RENDER_EXTERNAL_URL
+
+databases:
+  - name: b-trust-db
+    databaseName: neondb
+    user: neondb_owner
+    plan: free

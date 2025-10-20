@@ -153,15 +153,15 @@ const FDForm = ({ onSuccess, onCancel }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Customer Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Customer *
           </label>
           <select
             name="customer_id"
             value={formData.customer_id}
             onChange={handleInputChange}
-            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.customer_id ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+              errors.customer_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
             disabled={customersLoading}
           >
@@ -179,15 +179,15 @@ const FDForm = ({ onSuccess, onCancel }) => {
 
         {/* FD Type Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             FD Type *
           </label>
           <select
             name="fd_type_id"
             value={formData.fd_type_id}
             onChange={handleInputChange}
-            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.fd_type_id ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+              errors.fd_type_id ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
             disabled={fdTypesLoading}
           >
@@ -205,7 +205,7 @@ const FDForm = ({ onSuccess, onCancel }) => {
 
         {/* Principal Amount */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Principal Amount (LKR) *
           </label>
           <input
@@ -215,8 +215,8 @@ const FDForm = ({ onSuccess, onCancel }) => {
             onChange={handleInputChange}
             min="25000"
             step="100"
-            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.principal_amount ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+              errors.principal_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
             placeholder="Enter amount (minimum LKR 25,000)"
             title="Minimum amount required is LKR 25,000"
@@ -225,7 +225,7 @@ const FDForm = ({ onSuccess, onCancel }) => {
             <p className="mt-1 text-sm text-red-600">{errors.principal_amount}</p>
           )}
           {selectedFDType && (
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Min: LKR {selectedFDType.minimum_amount?.toLocaleString() || '25,000'} | 
               Max: LKR {selectedFDType.maximum_amount?.toLocaleString() || 'No limit'}
             </p>
@@ -234,15 +234,15 @@ const FDForm = ({ onSuccess, onCancel }) => {
 
         {/* Source Account */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Source Account *
           </label>
           <select
             name="source_account_number"
             value={formData.source_account_number}
             onChange={handleInputChange}
-            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.source_account_number ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+              errors.source_account_number ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
             }`}
             disabled={!formData.customer_id || accountsLoading}
           >
@@ -257,7 +257,7 @@ const FDForm = ({ onSuccess, onCancel }) => {
             <p className="mt-1 text-sm text-red-600">{errors.source_account_number}</p>
           )}
           {!formData.customer_id && (
-            <p className="mt-1 text-sm text-gray-500">Please select a customer first</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Please select a customer first</p>
           )}
         </div>
       </div>
@@ -269,52 +269,48 @@ const FDForm = ({ onSuccess, onCancel }) => {
           name="auto_renew"
           checked={formData.auto_renew}
           onChange={handleInputChange}
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
         />
-        <label className="ml-2 block text-sm text-gray-700">
+        <label className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
           Auto-renewal on maturity
         </label>
       </div>
 
       {/* FD Details Preview */}
       {selectedFDType && formData.principal_amount && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <h4 className="text-sm font-medium text-blue-900 mb-2">FD Details Preview</h4>
+        <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 rounded-md p-4">
+          <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">FD Details Preview</h4>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-blue-700">Interest Rate:</span>
-              <span className="ml-2 font-medium">{selectedFDType.interest_rate}% p.a.</span>
+              <span className="text-blue-700 dark:text-blue-300">Interest Rate:</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedFDType.interest_rate}% p.a.</span>
             </div>
             <div>
-              <span className="text-blue-700">Tenure:</span>
-              <span className="ml-2 font-medium">{selectedFDType.tenure_months} months</span>
+              <span className="text-blue-700 dark:text-blue-300">Tenure:</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-white">{selectedFDType.tenure_months} months</span>
             </div>
             <div>
-              <span className="text-blue-700">Principal Amount:</span>
-              <span className="ml-2 font-medium">LKR {parseFloat(formData.principal_amount || 0).toLocaleString()}</span>
+              <span className="text-blue-700 dark:text-blue-300">Principal Amount:</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-white">LKR {parseFloat(formData.principal_amount || 0).toLocaleString()}</span>
             </div>
             <div>
-              <span className="text-blue-700">Estimated Interest:</span>
-              <span className="ml-2 font-medium">
-                LKR {((parseFloat(formData.principal_amount || 0) * selectedFDType.interest_rate * selectedFDType.tenure_months) / (12 * 100)).toLocaleString()}
-              </span>
+              <span className="text-blue-700 dark:text-blue-300">Estimated Interest:</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-white">LKR {((parseFloat(formData.principal_amount || 0) * selectedFDType.interest_rate * selectedFDType.tenure_months) / (12 * 100)).toLocaleString()}</span>
             </div>
             <div className="col-span-2">
-              <span className="text-blue-700">Maturity Amount:</span>
-              <span className="ml-2 font-medium">
-                LKR {(parseFloat(formData.principal_amount || 0) + (parseFloat(formData.principal_amount || 0) * selectedFDType.interest_rate * selectedFDType.tenure_months) / (12 * 100)).toLocaleString()}
-              </span>
+              <span className="text-blue-700 dark:text-blue-300">Maturity Amount:</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-white">LKR {(parseFloat(formData.principal_amount || 0) + (parseFloat(formData.principal_amount || 0) * selectedFDType.interest_rate * selectedFDType.tenure_months) / (12 * 100)).toLocaleString()}</span>
             </div>
           </div>
         </div>
       )}
 
       {/* Form Actions */}
-      <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+      <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Cancel
         </button>

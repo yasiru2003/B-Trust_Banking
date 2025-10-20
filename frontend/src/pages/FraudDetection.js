@@ -10,7 +10,9 @@ import {
   TrendingUp,
   Clock,
   DollarSign,
-  Activity
+  Activity,
+  Play,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -25,14 +27,14 @@ const FraudDetection = () => {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('alerts');
-  const [statusFilter, setStatusFilter] = useState('PENDING');
+  const [statusFilter, setStatusFilter] = useState('pending');
   const [timeRange, setTimeRange] = useState(30);
 
-  // Fetch dashboard statistics
+  // Fetch fraud detection statistics
   const { data: statsData, isLoading: statsLoading } = useQuery({
-    queryKey: ['fraud-stats', timeRange],
+    queryKey: ['fraud-detection-stats'],
     queryFn: async () => {
-      const response = await api.get(`/fraud/dashboard-stats?days=${timeRange}`);
+      const response = await api.get('/fraud-detection/stats');
       return response.data.data;
     },
     refetchInterval: 30000 // Refresh every 30 seconds
@@ -40,9 +42,9 @@ const FraudDetection = () => {
 
   // Fetch fraud alerts
   const { data: alertsData, isLoading: alertsLoading } = useQuery({
-    queryKey: ['fraud-alerts', statusFilter],
+    queryKey: ['fraud-detection-alerts', statusFilter],
     queryFn: async () => {
-      const response = await api.get(`/fraud/alerts?status=${statusFilter}`);
+      const response = await api.get(`/fraud-detection/alerts?status=${statusFilter}&limit=50`);
       return response.data.data;
     },
     refetchInterval: 15000 // Refresh every 15 seconds
@@ -52,12 +54,15 @@ const FraudDetection = () => {
 
   // Review alert mutation
   const reviewMutation = useMutation({
-    mutationFn: async ({ flagId, status }) => {
-      await api.put(`/fraud/alerts/${flagId}/review`, { status });
+    mutationFn: async ({ alertId, status, resolution_notes }) => {
+      await api.put(`/fraud-detection/alerts/${alertId}/resolve`, { 
+        status, 
+        resolution_notes: resolution_notes || `Alert marked as ${status.toLowerCase()}` 
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['fraud-alerts']);
-      queryClient.invalidateQueries(['fraud-stats']);
+      queryClient.invalidateQueries(['fraud-detection-alerts']);
+      queryClient.invalidateQueries(['fraud-detection-stats']);
       toast.success('Alert reviewed successfully');
       setIsViewModalOpen(false);
     },
@@ -66,7 +71,25 @@ const FraudDetection = () => {
     }
   });
 
-  // Removed manual scan - fraud detection is now automatic and real-time
+  // Run fraud detection on recent transactions
+  const runDetectionMutation = useMutation({
+    mutationFn: async ({ hours = 24 }) => {
+      const response = await api.post('/fraud-detection/detect-recent', { hours });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['fraud-detection-alerts']);
+      queryClient.invalidateQueries(['fraud-detection-stats']);
+      toast.success(`Fraud detection completed: ${data.data.alertsGenerated} alerts from ${data.data.transactionsAnalyzed} transactions`);
+    },
+    onError: () => {
+      toast.error('Failed to run fraud detection');
+    }
+  });
+
+  const handleRunDetection = () => {
+    runDetectionMutation.mutate({ hours: 24 });
+  };
 
   const handleViewAlert = (alert) => {
     setSelectedAlert(alert);
@@ -76,7 +99,7 @@ const FraudDetection = () => {
   const handleReviewAlert = (status) => {
     if (selectedAlert) {
       reviewMutation.mutate({
-        flagId: selectedAlert.flag_id,
+        alertId: selectedAlert.alert_id,
         status
       });
     }
@@ -113,10 +136,8 @@ const FraudDetection = () => {
     return <LoadingSpinner />;
   }
 
-  const stats = statsData?.statistics || {};
-  const recentAlerts = statsData?.recent_alerts || [];
+  const stats = statsData || {};
   const alerts = alertsData || [];
-  const rules = rulesData || [];
 
   return (
     <div className="space-y-6">
@@ -143,7 +164,7 @@ const FraudDetection = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">High Risk</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.high_risk || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.high_alerts || 0}</p>
             </div>
           </div>
         </div>
@@ -155,7 +176,7 @@ const FraudDetection = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Pending Review</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.pending || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.pending_alerts || 0}</p>
             </div>
           </div>
         </div>
@@ -167,7 +188,7 @@ const FraudDetection = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Resolved</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.resolved || 0}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.resolved_alerts || 0}</p>
             </div>
           </div>
         </div>
@@ -209,6 +230,16 @@ const FraudDetection = () => {
             >
               Detection Rules
             </button>
+            <button
+              onClick={() => setActiveTab('actions')}
+              className={`py-4 px-6 text-sm font-medium border-b-2 ${
+                activeTab === 'actions'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Detection Actions
+            </button>
           </nav>
         </div>
 
@@ -222,10 +253,10 @@ const FraudDetection = () => {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="PENDING">Pending</option>
-                  <option value="RESOLVED">Resolved</option>
-                  <option value="FALSE_POSITIVE">False Positives</option>
-                  <option value="ESCALATED">Escalated</option>
+                  <option value="pending">Pending</option>
+                  <option value="resolved">Resolved</option>
+                  <option value="false_positive">False Positives</option>
+                  <option value="investigating">Investigating</option>
                 </select>
 
                 <select
@@ -264,27 +295,30 @@ const FraudDetection = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {alerts.map((alert) => (
-                        <tr key={alert.flag_id} className="hover:bg-gray-50">
+                        <tr key={alert.alert_id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {alert.flag_id}
+                            {alert.alert_id}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{alert.customer_name}</div>
+                            <div className="text-sm font-medium text-gray-900">{alert.customer_id}</div>
                             <div className="text-sm text-gray-500">{alert.account_number}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(alert.amount)}
+                            {alert.metadata && JSON.parse(alert.metadata).transaction_amount ? 
+                              formatCurrency(JSON.parse(alert.metadata).transaction_amount) : 
+                              'N/A'
+                            }
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(alert.date)}
+                            {formatDate(alert.detected_at)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSeverityBadge(alert.severity_level)}`}>
-                              {alert.severity_level}
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSeverityBadge(alert.severity.toUpperCase())}`}>
+                              {alert.severity}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(alert.status)}`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(alert.status.toUpperCase())}`}>
                               {alert.status}
                             </span>
                           </td>
@@ -310,6 +344,94 @@ const FraudDetection = () => {
               <FraudRulesDisplay />
             </div>
           )}
+
+          {activeTab === 'actions' && (
+            <div className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-blue-800 mb-2">Fraud Detection Actions</h3>
+                <p className="text-sm text-blue-700 mb-4">
+                  Manually trigger fraud detection on recent transactions or specific transactions.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="p-2 bg-blue-100 rounded-full mr-3">
+                        <Play className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900">Run Detection on Recent Transactions</h4>
+                        <p className="text-sm text-gray-600">Analyze transactions from the last 24 hours</p>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={handleRunDetection}
+                      disabled={runDetectionMutation.isPending}
+                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-3 px-4 rounded-md flex items-center justify-center"
+                    >
+                      {runDetectionMutation.isPending ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Running Detection...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-4 w-4 mr-2" />
+                          Run Detection (Last 24 Hours)
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-gray-200 p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="p-2 bg-green-100 rounded-full mr-3">
+                        <BarChart3 className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900">Detection Statistics</h4>
+                        <p className="text-sm text-gray-600">View current fraud detection metrics</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Alerts:</span>
+                        <span className="font-medium">{stats.total_alerts || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Pending Review:</span>
+                        <span className="font-medium text-yellow-600">{stats.pending_alerts || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">High Severity:</span>
+                        <span className="font-medium text-red-600">{stats.high_alerts || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Today's Alerts:</span>
+                        <span className="font-medium">{stats.today_alerts || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Avg Fraud Score:</span>
+                        <span className="font-medium">{((stats.avg_fraud_score || 0) * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-yellow-800 mb-2">Real-time Monitoring</h3>
+                <div className="text-sm text-yellow-700 space-y-2">
+                  <p>• <strong>Automatic Detection:</strong> All new transactions are automatically analyzed for fraud patterns</p>
+                  <p>• <strong>WebSocket Alerts:</strong> Real-time fraud alerts are broadcast to connected admin dashboards</p>
+                  <p>• <strong>Rule-based Analysis:</strong> 7 active fraud detection rules monitor different transaction patterns</p>
+                  <p>• <strong>Risk Scoring:</strong> Each alert receives a fraud score from 0-100% based on detected patterns</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -325,20 +447,19 @@ const FraudDetection = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Alert ID</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAlert.flag_id}</p>
+                <p className="mt-1 text-sm text-gray-900">{selectedAlert.alert_id}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Severity</label>
                 <div className="mt-1">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSeverityBadge(selectedAlert.severity_level)}`}>
-                    {selectedAlert.severity_level}
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getSeverityBadge(selectedAlert.severity.toUpperCase())}`}>
+                    {selectedAlert.severity}
                   </span>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Customer</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAlert.customer_name}</p>
-                <p className="text-xs text-gray-500">{selectedAlert.customer_id}</p>
+                <label className="block text-sm font-medium text-gray-700">Customer ID</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedAlert.customer_id}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Account</label>
@@ -346,30 +467,48 @@ const FraudDetection = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Transaction Amount</label>
-                <p className="mt-1 text-sm text-gray-900">{formatCurrency(selectedAlert.amount)}</p>
+                <p className="mt-1 text-sm text-gray-900">
+                  {selectedAlert.metadata && JSON.parse(selectedAlert.metadata).transaction_amount ? 
+                    formatCurrency(JSON.parse(selectedAlert.metadata).transaction_amount) : 
+                    'N/A'
+                  }
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Date/Time</label>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(selectedAlert.date)}</p>
+                <p className="mt-1 text-sm text-gray-900">{formatDate(selectedAlert.detected_at)}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Transaction Type</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedAlert.transaction_type_id}</p>
+                <p className="mt-1 text-sm text-gray-900">
+                  {selectedAlert.metadata && JSON.parse(selectedAlert.metadata).transaction_type ? 
+                    JSON.parse(selectedAlert.metadata).transaction_type : 
+                    'N/A'
+                  }
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Status</label>
                 <div className="mt-1">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(selectedAlert.status)}`}>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(selectedAlert.status.toUpperCase())}`}>
                     {selectedAlert.status}
                   </span>
                 </div>
               </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Description</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedAlert.description}</p>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Fraud Score</label>
+                <p className="mt-1 text-sm text-gray-900">{(selectedAlert.fraud_score * 100).toFixed(1)}%</p>
+              </div>
             </div>
 
-            {selectedAlert.status === 'PENDING' && (
+            {selectedAlert.status === 'pending' && (
               <div className="flex gap-3 pt-4 border-t">
                 <button
-                  onClick={() => handleReviewAlert('RESOLVED')}
+                  onClick={() => handleReviewAlert('resolved')}
                   disabled={reviewMutation.isPending}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md"
                 >
@@ -377,7 +516,7 @@ const FraudDetection = () => {
                   Mark Resolved
                 </button>
                 <button
-                  onClick={() => handleReviewAlert('FALSE_POSITIVE')}
+                  onClick={() => handleReviewAlert('false_positive')}
                   disabled={reviewMutation.isPending}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
                 >
@@ -385,12 +524,12 @@ const FraudDetection = () => {
                   False Positive
                 </button>
                 <button
-                  onClick={() => handleReviewAlert('ESCALATED')}
+                  onClick={() => handleReviewAlert('investigating')}
                   disabled={reviewMutation.isPending}
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md"
                 >
                   <AlertTriangle className="h-4 w-4 inline mr-2" />
-                  Escalate
+                  Investigate
                 </button>
               </div>
             )}

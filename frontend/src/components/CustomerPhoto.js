@@ -1,8 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import usePhotoUrl from '../hooks/usePhotoUrl';
 
 const CustomerPhoto = ({ customerId, photoUrl, firstName, lastName, className = "h-10 w-10 rounded-full object-cover border-2 border-gray-200" }) => {
   const { signedUrl, loading, error } = usePhotoUrl(customerId, photoUrl);
+  const [showImage, setShowImage] = useState(true);
+
+  // Reset image visibility when the URL changes
+  useEffect(() => {
+    setShowImage(true);
+  }, [signedUrl]);
 
   if (!photoUrl) {
     return (
@@ -22,7 +28,7 @@ const CustomerPhoto = ({ customerId, photoUrl, firstName, lastName, className = 
     );
   }
 
-  if (error || !signedUrl) {
+  if (error || !signedUrl || !showImage) {
     return (
       <div className={`${className} bg-gray-200 border-2 border-gray-300 flex items-center justify-center`}>
         <span className="text-gray-500 text-sm font-medium">
@@ -37,9 +43,11 @@ const CustomerPhoto = ({ customerId, photoUrl, firstName, lastName, className = 
       src={signedUrl}
       alt={`${firstName} ${lastName}`}
       className={className}
+      crossOrigin="anonymous"
+      referrerPolicy="no-referrer"
       onError={(e) => {
         console.error('Image failed to load:', signedUrl);
-        e.target.style.display = 'none';
+        setShowImage(false);
       }}
       onLoad={() => {
         console.log('Image loaded successfully:', signedUrl);
@@ -49,6 +57,7 @@ const CustomerPhoto = ({ customerId, photoUrl, firstName, lastName, className = 
 };
 
 export default CustomerPhoto;
+
 
 
 

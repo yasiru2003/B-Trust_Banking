@@ -210,3 +210,12 @@ export default CameraCapture;
 
 
 
+
+
+
+
+
+
+
+
+

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
+const { verifyToken, requireEmployee } = require('../middleware/auth');
 const { hasPermission, canAccessCustomer } = require('../middleware/permissions');
 const smsService = require('../services/smsService');
 const filebaseService = require('../services/filebaseService');
@@ -63,14 +64,14 @@ router.get('/', hasPermission('view_assigned_customers'), async (req, res) => {
     const params = [];
     let paramCount = 0;
 
-    // Role-based filtering
-    if (req.userRole === 'AGENT') {
+    // Role-based filtering (align with auth payload)
+    if (req.userRole === 'AGENT' || (req.user?.role || '').toUpperCase() === 'AGENT') {
       conditions.push(`TRIM(c.agent_id) = TRIM($${++paramCount})`);
-      params.push(req.user.userId);
-    } else if (req.userRole === 'MANAGER') {
+      params.push((req.user.employee_id || req.user.userId || '').toString().trim());
+    } else if (req.userRole === 'MANAGER' || (req.user?.role || '').toUpperCase() === 'MANAGER') {
       // Manager can see all customers in their branch
-      conditions.push(`c.branch_id = (SELECT branch_id FROM employee_auth WHERE TRIM(employee_id) = TRIM($${++paramCount}))`);
-      params.push(req.user.userId);
+      conditions.push(`c.branch_id = $${++paramCount}`);
+      params.push(req.user.branch_id);
     }
 
     // Add search filter
@@ -123,15 +124,14 @@ router.get('/', hasPermission('view_assigned_customers'), async (req, res) => {
 });
 
 // GET /api/customers/stats - Get customer statistics
-router.get('/stats', hasPermission('view_assigned_customers'), async (req, res) => {
+router.get('/stats', verifyToken, requireEmployee, async (req, res) => {
   try {
     let query = `
       SELECT
         COUNT(*) as total_customers,
         COUNT(CASE WHEN c.kyc_status = true THEN 1 END) as verified_customers,
         COUNT(CASE WHEN c.kyc_status = false THEN 1 END) as unverified_customers,
-        COUNT(CASE WHEN c.phone_is_verified = true THEN 1 END) as phone_verified_customers,
-        COUNT(CASE WHEN c.created_at >= date_trunc('month', CURRENT_DATE) THEN 1 END) as new_customers_30d
+        COUNT(CASE WHEN c.phone_is_verified = true THEN 1 END) as phone_verified_customers
       FROM customer c
       LEFT JOIN employee_auth e ON TRIM(c.agent_id) = TRIM(e.employee_id)
     `;
@@ -903,5 +903,157 @@ router.patch('/:id/kyc', hasPermission('update_customer_info'), canAccessCustome
     });
   }
 });
+
+// GET /api/customers/recent-activity - Get recent activity for dashboard
+router.get('/recent-activity', verifyToken, requireEmployee, async (req, res) => {
+  try {
+    const activities = [];
+    
+    // Get recent customers (last 7 days) - Since no created_at column, we'll get all customers
+    const recentCustomersQuery = `
+      SELECT 
+        c.customer_id,
+        c.first_name,
+        c.last_name,
+        'customer' as activity_type,
+        'New customer registered' as message,
+        'success' as status
+      FROM customer c
+      WHERE TRIM(c.agent_id) = $1
+      ORDER BY c.customer_id DESC
+      LIMIT 5
+    `;
+    
+    const recentCustomers = await db.query(recentCustomersQuery, [req.user.employee_id.trim()]);
+    
+    // Get recent accounts (last 7 days)
+    const recentAccountsQuery = `
+      SELECT 
+        a.account_number,
+        a.opening_date,
+        c.first_name,
+        c.last_name,
+        'account' as activity_type,
+        'New account opened' as message,
+        'success' as status
+      FROM account a
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      WHERE a.opening_date >= NOW() - INTERVAL '7 days'
+      AND TRIM(c.agent_id) = TRIM($1)
+      ORDER BY a.opening_date DESC
+      LIMIT 5
+    `;
+    
+    const recentAccounts = await db.query(recentAccountsQuery, [req.user.employee_id.trim()]);
+    
+    // Get recent large transactions (last 7 days, amount > 10000)
+    const largeTransactionsQuery = `
+      SELECT 
+        t.transaction_id,
+        t.amount,
+        t.date,
+        tt.type_name,
+        c.first_name,
+        c.last_name,
+        'transaction' as activity_type,
+        'Large transaction processed' as message,
+        'warning' as status
+      FROM transaction t
+      LEFT JOIN transaction_type tt ON t.transaction_type_id = tt.transaction_type_id
+      LEFT JOIN account a ON t.account_number = a.account_number
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      WHERE t.date >= NOW() - INTERVAL '7 days'
+      AND t.amount > 10000
+      AND TRIM(t.agent_id) = TRIM($1)
+      ORDER BY t.date DESC
+      LIMIT 5
+    `;
+    
+    const largeTransactions = await db.query(largeTransactionsQuery, [req.user.employee_id.trim()]);
+    
+    // Get recent KYC updates (last 7 days) - Since no updated_at column, we'll get all customers
+    const kycUpdatesQuery = `
+      SELECT 
+        c.customer_id,
+        c.first_name,
+        c.last_name,
+        c.kyc_status,
+        'kyc' as activity_type,
+        CASE 
+          WHEN c.kyc_status = true THEN 'KYC verification completed'
+          ELSE 'KYC verification pending'
+        END as message,
+        CASE 
+          WHEN c.kyc_status = true THEN 'success'
+          ELSE 'warning'
+        END as status
+      FROM customer c
+      WHERE TRIM(c.agent_id) = $1
+      ORDER BY c.customer_id DESC
+      LIMIT 5
+    `;
+    
+    const kycUpdates = await db.query(kycUpdatesQuery, [req.user.employee_id.trim()]);
+    
+    // Combine all activities and format them
+    const allActivities = [
+      ...recentCustomers.rows.map((row, index) => ({
+        ...row,
+        time: `${index + 1} day${index > 0 ? 's' : ''} ago`,
+        details: `${row.first_name} ${row.last_name} (${row.customer_id})`
+      })),
+      ...recentAccounts.rows.map((row, index) => ({
+        ...row,
+        time: `${index + 1} day${index > 0 ? 's' : ''} ago`,
+        details: `${row.first_name} ${row.last_name} - ${row.account_number}`
+      })),
+      ...largeTransactions.rows.map((row, index) => ({
+        ...row,
+        time: `${index + 1} day${index > 0 ? 's' : ''} ago`,
+        details: `${row.first_name} ${row.last_name} - LKR ${row.amount?.toLocaleString()}`
+      })),
+      ...kycUpdates.rows.map((row, index) => ({
+        ...row,
+        time: `${index + 1} day${index > 0 ? 's' : ''} ago`,
+        details: `${row.first_name} ${row.last_name} (${row.customer_id})`
+      }))
+    ];
+    
+    // Sort by time (most recent first) and limit to 10
+    allActivities.sort((a, b) => new Date(b.time) - new Date(a.time));
+    const recentActivity = allActivities.slice(0, 10);
+    
+    res.json({
+      success: true,
+      data: recentActivity
+    });
+    
+  } catch (error) {
+    console.error('Get recent activity error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent activity'
+    });
+  }
+});
+
+// Helper function to format time ago
+function formatTimeAgo(date) {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - new Date(date)) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return 'Just now';
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  } else {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  }
+}
 
 module.exports = router;

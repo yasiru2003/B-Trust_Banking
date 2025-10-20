@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 const Joi = require('joi');
+const { auditMiddleware, AUDIT_ACTIONS, RESOURCE_TYPES } = require('../middleware/auditMiddleware');
 
 // Validation schemas
 const loginSchema = Joi.object({
@@ -20,7 +21,7 @@ const registerSchema = Joi.object({
 });
 
 // POST /api/auth/login - Login user
-router.post('/login', async (req, res) => {
+router.post('/login', auditMiddleware(AUDIT_ACTIONS.LOGIN, RESOURCE_TYPES.USER, (req, res) => req.body.email), async (req, res) => {
   try {
     const { error, value } = loginSchema.validate(req.body);
     if (error) {

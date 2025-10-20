@@ -36,7 +36,7 @@ router.get('/', verifyToken, requireEmployee, async (req, res) => {
     const params = [];
     let paramCount = 0;
 
-    // Add agent-specific filtering
+    // Add agent-specific filtering (only assigned customers' accounts)
     if (req.user.role === 'Agent') {
       conditions.push(`TRIM(c.agent_id) = $${++paramCount}`);
       params.push(req.user.employee_id.trim());

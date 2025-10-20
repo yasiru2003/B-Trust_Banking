@@ -99,7 +99,40 @@ const TransactionForm = ({ onClose, onSuccess }) => {
       const response = await api.post('/transactions', transactionData);
       return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+        // Optimistic UI: adjust balances in cached lists immediately
+        try {
+          const accountNo = variables.account_number;
+          const amountNum = parseFloat(variables.amount);
+          const isDeposit = variables.transaction_type_id?.trim() === 'DEP001';
+          const delta = isDeposit ? amountNum : -amountNum;
+
+          // Patch helper for different cached shapes
+          const patchAccountsList = (queryKey) => {
+            queryClient.setQueryData(queryKey, (old) => {
+              if (!old) return old;
+              const copy = { ...old };
+              const arr = copy.data || copy.accounts || [];
+              const updated = arr.map((a) =>
+                a.account_number === accountNo
+                  ? { ...a, current_balance: parseFloat(a.current_balance || 0) + delta }
+                  : a
+              );
+              if (copy.data) copy.data = updated; else copy.accounts = updated;
+              return copy;
+            });
+          };
+
+          // Customer accounts in the modal
+          if (selectedCustomer) {
+            patchAccountsList(['customer-accounts', selectedCustomer.customer_id]);
+          }
+          // Generic accounts queries used elsewhere
+          patchAccountsList('accounts');
+          patchAccountsList(['accounts', 'agent']);
+          patchAccountsList(['accounts', 'manager']);
+        } catch (_) {}
+
         queryClient.invalidateQueries('transactions');
         queryClient.invalidateQueries('transaction-stats');
         queryClient.invalidateQueries('accounts');

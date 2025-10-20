@@ -266,6 +266,95 @@ router.post('/employees', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/fraud-alerts - Get fraud alerts for admin dashboard
+router.get('/fraud-alerts', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { limit = 10, status, severity } = req.query;
+    
+    // Build the query with optional filters
+    let query = `
+      SELECT 
+        fa.alert_id,
+        fa.transaction_id,
+        fa.customer_id,
+        fa.account_number,
+        fa.rule_id,
+        fa.severity,
+        fa.fraud_score,
+        fa.status,
+        fa.description,
+        fa.detected_at,
+        fa.resolved_at,
+        fa.resolved_by,
+        fa.resolution_notes,
+        fa.metadata,
+        c.first_name || ' ' || c.last_name as customer_name,
+        a.current_balance,
+        t.amount,
+        tt.type_name as transaction_type
+      FROM fraud_alerts fa
+      LEFT JOIN customer c ON fa.customer_id = c.customer_id
+      LEFT JOIN account a ON fa.account_number = a.account_number
+      LEFT JOIN transaction t ON fa.transaction_id = t.transaction_id
+      LEFT JOIN transaction_type tt ON t.transaction_type_id = tt.transaction_type_id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramCount = 0;
+    
+    // Add status filter if provided
+    if (status) {
+      query += ` AND fa.status = $${++paramCount}`;
+      params.push(status);
+    }
+    
+    // Add severity filter if provided
+    if (severity) {
+      query += ` AND fa.severity = $${++paramCount}`;
+      params.push(severity);
+    }
+    
+    // Order by detected_at descending and limit results
+    query += ` ORDER BY fa.detected_at DESC LIMIT $${++paramCount}`;
+    params.push(parseInt(limit));
+    
+    const result = await db.query(query, params);
+    
+    // Format the response
+    const alerts = result.rows.map(alert => ({
+      alert_id: alert.alert_id,
+      transaction_id: alert.transaction_id,
+      customer_id: alert.customer_id,
+      account_number: alert.account_number,
+      rule_id: alert.rule_id,
+      severity: alert.severity,
+      fraud_score: parseFloat(alert.fraud_score),
+      status: alert.status,
+      description: alert.description,
+      detected_at: alert.detected_at,
+      resolved_at: alert.resolved_at,
+      resolved_by: alert.resolved_by,
+      resolution_notes: alert.resolution_notes,
+      metadata: alert.metadata,
+      customer_name: alert.customer_name,
+      amount: alert.amount ? parseFloat(alert.amount) : null,
+      transaction_type: alert.transaction_type
+    }));
+
+    res.json({
+      success: true,
+      data: alerts
+    });
+  } catch (error) {
+    console.error('Get fraud alerts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch fraud alerts'
+    });
+  }
+});
+
 module.exports = router;
 
 
