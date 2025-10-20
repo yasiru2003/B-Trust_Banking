@@ -44,12 +44,11 @@ const Customers = () => {
       return response.data;
     },
     onSuccess: () => {
-        queryClient.invalidateQueries('customers');
-        toast.success('Customer deleted successfully');
-      },
-      onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to delete customer');
-      }
+      queryClient.invalidateQueries('customers');
+      toast.success('Customer deleted successfully');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to delete customer');
     }
   });
 
