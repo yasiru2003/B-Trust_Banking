@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CreditCard, Plus, Search, Filter, Eye, DollarSign } from 'lucide-react';
+import { CreditCard, Plus, Search, Filter, Eye, Info } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -10,6 +10,8 @@ import { useAuth } from '../context/AuthContext';
 
 const Accounts = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedType, setSelectedType] = useState('');
@@ -139,6 +141,11 @@ const Accounts = () => {
 
   const handleCreateAccount = (formData) => {
     createAccountMutation.mutate(formData);
+  };
+
+  const handleViewAccountDetails = (account) => {
+    setSelectedAccount(account);
+    setIsDetailsModalOpen(true);
   };
 
   const filteredAccounts = accountsData?.data?.filter(account => {
@@ -350,15 +357,11 @@ const Accounts = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button 
-                        onClick={() => {
-                          // Show account details in a modal or expandable row
-                          console.log('More details for account:', account);
-                          alert(`Account Details:\n\nAccount Number: ${account.account_number}\nCustomer: ${account.customer_name}\nType: ${account.account_type}\nBalance: LKR ${parseFloat(account.current_balance || 0).toLocaleString()}\nStatus: ${account.status ? 'Active' : 'Inactive'}\nOpening Date: ${account.opening_date || 'N/A'}`);
-                        }}
+                        onClick={() => handleViewAccountDetails(account)}
                         className="text-green-600 hover:text-green-900 mr-3"
                         title="View More Details"
                       >
-                        <DollarSign className="h-4 w-4" />
+                        <Info className="h-4 w-4" />
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -387,6 +390,80 @@ const Accounts = () => {
           onSubmit={handleCreateAccount}
           isLoading={createAccountMutation.isLoading}
         />
+      </Modal>
+
+      {/* Account Details Modal */}
+      <Modal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        title="Account Details"
+        size="lg"
+      >
+        {selectedAccount && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Account Number</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedAccount.account_number}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <div className="mt-1">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    selectedAccount.status 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {selectedAccount.status ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer Name</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedAccount.customer_name || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Account Type</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedAccount.account_type || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Current Balance</label>
+                <p className="mt-1 text-sm font-medium text-gray-900">
+                  LKR {parseFloat(selectedAccount.current_balance || 0).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Branch</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedAccount.branch_name || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Opening Date</label>
+                <p className="mt-1 text-sm text-gray-900">
+                  {selectedAccount.opening_date ? new Date(selectedAccount.opening_date).toLocaleDateString() : 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer Phone</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedAccount.phone_number || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer Email</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedAccount.email || 'N/A'}</p>
+              </div>
+            </div>
+            
+            <div className="pt-4 border-t">
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
