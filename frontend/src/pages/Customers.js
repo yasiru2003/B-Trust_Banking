@@ -87,6 +87,11 @@ const Customers = () => {
 
   const customers = customersData?.data || [];
 
+  // Debug logging
+  console.log('Customers component - User:', user);
+  console.log('Customers component - User role:', user?.role);
+  console.log('Customers component - Customers data:', customers);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -252,7 +257,8 @@ const Customers = () => {
                               <Edit className="h-4 w-4" />
                             </button>
                           )}
-                          {user?.role === 'Agent' && hasPermission('update_customer') && (
+                          {/* KYC Status Update Button - Show for all agents */}
+                          {(user?.role === 'Agent' || user?.role === 'agent') && (
                             <button
                               onClick={() => handleKycUpdate(customer.customer_id, customer.kyc_status)}
                               disabled={updateKycMutation.isLoading}
