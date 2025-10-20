@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Eye, Download, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Plus, Search, Filter, Eye, Download, TrendingUp, TrendingDown, Banknote, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -95,7 +95,7 @@ const Transactions = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <DollarSign className="h-6 w-6 text-blue-600" />
+              <Banknote className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Volume</p>
@@ -137,7 +137,7 @@ const Transactions = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 rounded-lg">
-              <DollarSign className="h-6 w-6 text-purple-600" />
+              <Activity className="h-6 w-6 text-purple-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Today's Count</p>
