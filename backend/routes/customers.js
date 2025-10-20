@@ -4,6 +4,7 @@ const db = require('../config/database');
 const { hasPermission, canAccessCustomer } = require('../middleware/permissions');
 const smsService = require('../services/smsService');
 const filebaseService = require('../services/filebaseService');
+const NotificationService = require('../services/notificationService');
 const Joi = require('joi');
 
 // Validation schemas
@@ -867,6 +868,20 @@ router.patch('/:id/kyc', hasPermission('update_customer_info'), canAccessCustome
     );
 
     const updatedCustomer = updateResult.rows[0];
+
+    // Send notification to managers about KYC status change
+    try {
+      const customerName = `${updatedCustomer.first_name} ${updatedCustomer.last_name}`;
+      await NotificationService.notifyKYCStatusChange(
+        req.user.employee_id.trim(),
+        updatedCustomer.customer_id,
+        customerName,
+        kyc_status
+      );
+    } catch (notificationError) {
+      console.error('Failed to send KYC notification:', notificationError);
+      // Don't fail the request if notification fails
+    }
 
     res.json({
       success: true,
