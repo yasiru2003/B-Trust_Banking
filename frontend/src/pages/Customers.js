@@ -173,7 +173,7 @@ const Customers = () => {
       </div>
 
       {/* Customers Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <LoadingSpinner size="xl" />
@@ -206,14 +206,14 @@ const Customers = () => {
                               photoUrl={customer.photo}
                               firstName={customer.first_name}
                               lastName={customer.last_name}
-                              className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+                              className="h-10 w-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
                             />
                           </div>
                           <div>
                             <div className="font-medium">
                               {customer.first_name} {customer.last_name}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
                               {customer.nic_number}
                             </div>
                           </div>
