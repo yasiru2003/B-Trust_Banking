@@ -15,7 +15,7 @@
   "keywords": ["banking", "fintech", "nodejs", "react"],
   "author": "B-Trust Banking",
   "license": "MIT",
-  "devDependencies": {
+  "dependencies": {
     "concurrently": "^8.2.2"
   },
   "engines": {
