@@ -137,6 +137,8 @@ router.get('/stats', hasPermission('view_all_transactions'), async (req, res) =>
         COUNT(CASE WHEN t.status = false THEN 1 END) as failed_transactions,
         SUM(CASE WHEN t.transaction_type_id = 'DEP001' AND t.status = true THEN t.amount ELSE 0 END) as total_deposits,
         SUM(CASE WHEN t.transaction_type_id = 'WIT001' AND t.status = true THEN t.amount ELSE 0 END) as total_withdrawals,
+        SUM(CASE WHEN t.status = true THEN t.amount ELSE 0 END) as total_volume,
+        COUNT(CASE WHEN t.date = CURRENT_DATE THEN 1 END) as today_count,
         AVG(CASE WHEN t.status = true THEN t.amount END) as average_transaction_amount
       FROM transaction t
       LEFT JOIN employee_auth e ON t.agent_id = e.employee_id
