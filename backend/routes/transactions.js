@@ -405,12 +405,33 @@ router.post('/', verifyToken, requireAgent, checkTransactionLimit, async (req, r
     const transactionAmount = parseFloat(value.amount);
 
     // Check if it's a withdrawal and if sufficient funds
-    if (value.transaction_type_id === 'WIT001' && currentBalance < transactionAmount) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({
-        success: false,
-        message: 'Insufficient funds'
-      });
+    if (value.transaction_type_id === 'WIT001') {
+      if (currentBalance < transactionAmount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient funds. Available balance: LKR ${currentBalance.toLocaleString()}, Required: LKR ${transactionAmount.toLocaleString()}`
+        });
+      }
+      
+      // Check minimum balance requirement for withdrawals
+      const accountTypeResult = await client.query(
+        'SELECT at.minimum_balance FROM account a JOIN account_type at ON a.acc_type_id = at.acc_type_id WHERE a.account_number = $1',
+        [value.account_number]
+      );
+      
+      if (accountTypeResult.rows.length > 0) {
+        const minimumBalance = parseFloat(accountTypeResult.rows[0].minimum_balance || 0);
+        const balanceAfterWithdrawal = currentBalance - transactionAmount;
+        
+        if (minimumBalance > 0 && balanceAfterWithdrawal < minimumBalance) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            success: false,
+            message: `Withdrawal would violate minimum balance requirement. Minimum balance: LKR ${minimumBalance.toLocaleString()}, Balance after withdrawal: LKR ${balanceAfterWithdrawal.toLocaleString()}`
+          });
+        }
+      }
     }
 
     // Calculate new balance
