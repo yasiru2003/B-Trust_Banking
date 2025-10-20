@@ -242,11 +242,11 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {getGreeting()}, {getUserDisplayName()}!
         </h1>
-        <p className="text-gray-600 mt-1">
+        <p className="text-gray-600 dark:text-gray-300 mt-1">
           Welcome to your B-Trust Banking dashboard. Here's what's happening today.
         </p>
       </div>
@@ -256,12 +256,12 @@ const Dashboard = () => {
         {cards.map((card, index) => {
           const Icon = card.icon;
           return (
-            <div key={index} className="bg-white rounded-lg shadow p-6">
+            <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
-                  <p className="text-xs text-gray-500 mt-1">{card.change}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{card.title}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{card.value}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{card.change}</p>
                 </div>
                 <div className={`p-3 rounded-full ${getCardColor(card.color)}`}>
                   <Icon className="h-6 w-6 text-white" />
@@ -273,9 +273,9 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h2>
         </div>
         <div className="p-6">
           <div className="space-y-4">
@@ -290,8 +290,8 @@ const Dashboard = () => {
                   {activity.type === 'security' && <AlertTriangle className="h-4 w-4" />}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                  <p className="text-xs text-gray-500">{activity.time}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.message}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{activity.time}</p>
                 </div>
               </div>
             ))}
@@ -301,8 +301,8 @@ const Dashboard = () => {
 
       {/* Quick Actions */}
       {userType === 'employee' && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button 
               onClick={() => setIsAddCustomerModalOpen(true)}
