@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, Plus } from 'lucide-react';
+import { UserCheck, Plus, Trash2 } from 'lucide-react';
 import api from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -58,6 +58,24 @@ const Employees = () => {
     }
   };
 
+  const onDelete = async (employee_id, employee_name) => {
+    if (!window.confirm(`Are you sure you want to delete employee "${employee_name}"?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await api.delete(`/admin/employees/${employee_id}`);
+      if (res.data?.success) {
+        toast.success(res.data.message || 'Employee deleted successfully');
+        load();
+      } else {
+        toast.error(res.data?.message || 'Delete failed');
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Delete failed');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -113,17 +131,45 @@ const Employees = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
+                  {isAdmin && (
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {employees.map(emp => (
                   <tr key={emp.employee_id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{emp.employee_id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{emp.employee_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{emp.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{emp.phone_number || '-'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{emp.role}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{emp.branch_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{emp.employee_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{emp.employee_name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.phone_number || '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        emp.role === 'Admin' ? 'bg-purple-100 text-purple-800' :
+                        emp.role === 'Manager' ? 'bg-blue-100 text-blue-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {emp.role}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{emp.branch_id}</td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <button
+                          onClick={() => onDelete(emp.employee_id, emp.employee_name)}
+                          disabled={emp.employee_id === user?.employee_id}
+                          className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md ${
+                            emp.employee_id === user?.employee_id
+                              ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                              : 'text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+                          }`}
+                          title={emp.employee_id === user?.employee_id ? 'Cannot delete your own account' : 'Delete employee'}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          Delete
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

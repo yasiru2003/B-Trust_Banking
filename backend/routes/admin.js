@@ -266,6 +266,48 @@ router.post('/employees', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// Delete an employee (Admin only)
+router.delete('/employees/:employee_id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { employee_id } = req.params;
+
+    // Prevent admin from deleting themselves
+    if (req.user.userId === employee_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot delete your own account'
+      });
+    }
+
+    // Check if employee exists
+    const checkQuery = 'SELECT employee_id, employee_name, role FROM employee_auth WHERE employee_id = $1';
+    const checkResult = await db.query(checkQuery, [employee_id.trim()]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
+    }
+
+    // Delete the employee
+    const deleteQuery = 'DELETE FROM employee_auth WHERE employee_id = $1 RETURNING employee_id, employee_name';
+    const result = await db.query(deleteQuery, [employee_id.trim()]);
+
+    res.json({
+      success: true,
+      message: `Employee ${result.rows[0].employee_name} deleted successfully`,
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Delete employee error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete employee. This employee may have associated records.'
+    });
+  }
+});
+
 module.exports = router;
 
 

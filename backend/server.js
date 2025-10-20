@@ -95,6 +95,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/verification', require('./routes/verification'));
 app.use('/api/transaction-otp', require('./routes/transaction-otp'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/customer-history', require('./routes/customer-history'));
 
 // 404 handler
 app.use('*', (req, res) => {

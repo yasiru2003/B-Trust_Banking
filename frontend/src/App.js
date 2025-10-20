@@ -19,6 +19,7 @@ import AdvancedReports from './pages/AdvancedReports';
 import AccountSummaryReport from './pages/AccountSummaryReport';
 import ActiveFDReport from './pages/ActiveFDReport';
 import AgentPerformanceReport from './pages/AgentPerformanceReport';
+import CustomerHistory from './pages/CustomerHistory';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import Profile from './pages/Profile';
@@ -57,6 +58,7 @@ function App() {
                   <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="customers" element={<Customers />} />
+                  <Route path="customer-history" element={<CustomerHistory />} />
                   <Route path="accounts" element={<Accounts />} />
                   <Route path="accounts/summary-report" element={<AccountSummaryReport />} />
                   <Route path="transactions" element={<Transactions />} />

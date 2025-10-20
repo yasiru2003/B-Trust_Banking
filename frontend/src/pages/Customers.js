@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Filter, Edit, Trash2, Eye, History } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -12,6 +13,7 @@ import toast from 'react-hot-toast';
 const Customers = () => {
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
   const [page, setPage] = useState(1);
@@ -206,6 +208,13 @@ const Customers = () => {
                       </td>
                       <td className="table-cell">
                         <div className="flex space-x-2">
+                          <button
+                            onClick={() => navigate(`/customer-history?customer_id=${customer.customer_id}`)}
+                            className="btn btn-ghost btn-sm"
+                            title="View History"
+                          >
+                            <History className="h-4 w-4" />
+                          </button>
                           <button className="btn btn-ghost btn-sm">
                             <Eye className="h-4 w-4" />
                           </button>

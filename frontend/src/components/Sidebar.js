@@ -11,7 +11,8 @@ import {
   BarChart3,
   FileText,
   X,
-  User
+  User,
+  History
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,7 +31,13 @@ const Sidebar = ({ isOpen, onClose }) => {
       name: 'Customers',
       href: '/customers',
       icon: Users,
-      permission: 'view_assigned_customers',
+      permission: null,
+    },
+    {
+      name: 'Customer History',
+      href: '/customer-history',
+      icon: History,
+      permission: null,
     },
     {
       name: 'Account Summary',
