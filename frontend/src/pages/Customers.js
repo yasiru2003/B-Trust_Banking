@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -51,11 +51,36 @@ const Customers = () => {
         toast.error(error.response?.data?.message || 'Failed to delete customer');
       },
     }
-  );
+  });
+
+  // Update KYC status mutation
+  const updateKycMutation = useMutation({
+    mutationFn: async ({ customerId, kycStatus }) => {
+      const response = await api.put(`/customers/${customerId}`, { kyc_status: kycStatus });
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries('customers');
+      const status = variables.kycStatus ? 'verified' : 'rejected';
+      toast.success(`KYC status ${status} successfully!`);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to update KYC status');
+    }
+  });
 
   const handleDelete = (customerId) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       deleteCustomerMutation.mutate(customerId);
+    }
+  };
+
+  const handleKycUpdate = (customerId, currentStatus) => {
+    const newStatus = !currentStatus;
+    const action = newStatus ? 'verify' : 'reject';
+    
+    if (window.confirm(`Are you sure you want to ${action} KYC for this customer?`)) {
+      updateKycMutation.mutate({ customerId, kycStatus: newStatus });
     }
   };
 
@@ -220,18 +245,37 @@ const Customers = () => {
                       </td>
                       <td className="table-cell">
                         <div className="flex space-x-2">
-                          <button className="btn btn-ghost btn-sm">
+                          <button className="btn btn-ghost btn-sm" title="View Customer">
                             <Eye className="h-4 w-4" />
                           </button>
                           {user?.role === 'Agent' && hasPermission('update_customer') && (
-                            <button className="btn btn-ghost btn-sm">
+                            <button className="btn btn-ghost btn-sm" title="Edit Customer">
                               <Edit className="h-4 w-4" />
+                            </button>
+                          )}
+                          {user?.role === 'Agent' && hasPermission('update_customer') && (
+                            <button
+                              onClick={() => handleKycUpdate(customer.customer_id, customer.kyc_status)}
+                              disabled={updateKycMutation.isLoading}
+                              className={`btn btn-ghost btn-sm ${
+                                customer.kyc_status 
+                                  ? 'text-red-600 hover:text-red-700' 
+                                  : 'text-green-600 hover:text-green-700'
+                              } disabled:opacity-50`}
+                              title={customer.kyc_status ? 'Reject KYC' : 'Verify KYC'}
+                            >
+                              {customer.kyc_status ? (
+                                <XCircle className="h-4 w-4" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
                             </button>
                           )}
                           {user?.role === 'Agent' && hasPermission('delete_customer') && (
                             <button
                               onClick={() => handleDelete(customer.customer_id)}
                               className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
+                              title="Delete Customer"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>

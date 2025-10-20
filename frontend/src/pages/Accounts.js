@@ -356,9 +356,6 @@ const Accounts = () => {
                     Freeze Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    More Details
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -419,20 +416,18 @@ const Accounts = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button 
-                        onClick={() => {
-                          // Show account details in a modal or expandable row
-                          console.log('More details for account:', account);
-                          alert(`Account Details:\n\nAccount Number: ${account.account_number}\nCustomer: ${account.customer_name}\nType: ${account.account_type}\nBalance: LKR ${parseFloat(account.current_balance || 0).toLocaleString()}\nStatus: ${account.status ? 'Active' : 'Inactive'}\nFreeze Status: ${account.is_frozen ? 'Frozen' : 'Normal'}\nOpening Date: ${account.opening_date || 'N/A'}`);
-                        }}
-                        className="text-green-600 hover:text-green-900 mr-3"
-                        title="View More Details"
-                      >
-                        <DollarSign className="h-4 w-4" />
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => {
+                            // Show account details in a modal or expandable row
+                            console.log('More details for account:', account);
+                            alert(`Account Details:\n\nAccount Number: ${account.account_number}\nCustomer: ${account.customer_name}\nType: ${account.account_type}\nBalance: LKR ${parseFloat(account.current_balance || 0).toLocaleString()}\nStatus: ${account.status ? 'Active' : 'Inactive'}\nFreeze Status: ${account.is_frozen ? 'Frozen' : 'Normal'}\nOpening Date: ${account.opening_date || 'N/A'}`);
+                          }}
+                          className="text-green-600 hover:text-green-900"
+                          title="View More Details"
+                        >
+                          <DollarSign className="h-4 w-4" />
+                        </button>
                         <button className="text-blue-600 hover:text-blue-900" title="View Account">
                           <Eye className="h-4 w-4" />
                         </button>
