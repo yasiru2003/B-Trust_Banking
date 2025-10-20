@@ -29,7 +29,18 @@ const Employees = () => {
         api.get('/employees'),
         api.get('/branches')
       ]);
-      if (emps.data?.success) setEmployees(emps.data.data);
+      if (emps.data?.success) {
+        let data = emps.data.data;
+
+        // Filter employees if Manager
+        if (isManager && user?.branch_id) {
+          data = data.filter(emp => 
+            emp.role === 'Agent' && emp.branch_id === user.branch_id
+          );
+        }
+
+        setEmployees(data);
+      }
       if (brs.data?.success) setBranches(brs.data.data);
     } catch (e) {
       toast.error('Failed to load employees');
