@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const FDMaturityService = require('./services/fdMaturityService');
+const FDMaturityService = require('./fdMaturityService');
 
 class FDMaturityScheduler {
   constructor() {
