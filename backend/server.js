@@ -32,16 +32,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Serve static files from the React app build directory
-if (process.env.NODE_ENV === 'production') {
-  const path = require('path');
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
-  
-  // Handle React routing, return all requests to React app
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
-  });
-}
+// Static file serving will be added after API routes
 
 // Security middleware
 app.use(helmet());
@@ -146,6 +137,17 @@ app.use('*', (req, res) => {
     message: 'Route not found'
   });
 });
+
+// Serve static files from the React app build directory (AFTER API routes)
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  app.use(express.static(path.join(__dirname, '../frontend/build')));
+  
+  // Handle React routing, return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
+  });
+}
 
 // Global error handler
 app.use((err, req, res, next) => {
