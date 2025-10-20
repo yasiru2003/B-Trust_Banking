@@ -36,6 +36,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       permission: 'view_assigned_customers',
     },
     {
+      name: 'Accounts',
+      href: '/accounts',
+      icon: CreditCard,
+      permission: 'view_assigned_customers',
+    },
+    {
       name: 'Account Summary',
       href: '/accounts/summary-report',
       icon: CreditCard,
