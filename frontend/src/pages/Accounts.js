@@ -417,7 +417,6 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
   });
   const [selectedAccountType, setSelectedAccountType] = useState(null);
   const [balanceError, setBalanceError] = useState('');
-  const [isJointAccount, setIsJointAccount] = useState(false);
 
   // Get user info from AuthContext
   const { user } = useAuth();
@@ -430,9 +429,21 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
     console.log('Form submission - selectedAccountType:', selectedAccountType);
     console.log('Form submission - formData:', formData);
     
+    // Handle joint account type - extract the actual account type ID
+    let actualAccountTypeId = formData.acc_type_id;
+    let isJointAccount = false;
+    
+    if (formData.acc_type_id.startsWith('joint-')) {
+      actualAccountTypeId = formData.acc_type_id.replace('joint-', '');
+      isJointAccount = true;
+    }
+    
+    // Find the selected account type for validation
+    const accountTypeForValidation = accountTypes.find(type => type.acc_type_id === actualAccountTypeId);
+    
     // Validate minimum balance
-    if (selectedAccountType && selectedAccountType.minimum_balance) {
-      const minBalance = parseFloat(selectedAccountType.minimum_balance);
+    if (accountTypeForValidation && accountTypeForValidation.minimum_balance) {
+      const minBalance = parseFloat(accountTypeForValidation.minimum_balance);
       const enteredBalance = parseFloat(formData.current_balance);
       
       console.log('Validation - minBalance:', minBalance, 'enteredBalance:', enteredBalance);
@@ -442,7 +453,7 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
         setBalanceError(`Minimum balance required: LKR ${minBalance.toLocaleString()}`);
         return;
       }
-    } else if (selectedAccountType && selectedAccountType.acc_type_id === 'SAV001') {
+    } else if (accountTypeForValidation && accountTypeForValidation.acc_type_id === 'SAV001') {
       // Fallback validation for Savings Account if minimum_balance is not loaded
       const minBalance = 1000;
       const enteredBalance = parseFloat(formData.current_balance);
@@ -460,7 +471,12 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
     setBalanceError('');
     
     // For agents, automatically set the branch_id to their assigned branch
-    const submitData = { ...formData };
+    const submitData = { 
+      ...formData, 
+      acc_type_id: actualAccountTypeId,
+      joint_customers: isJointAccount ? formData.joint_customers : undefined
+    };
+    
     if (isAgent && agentBranchId) {
       submitData.branch_id = agentBranchId;
     }
@@ -556,22 +572,35 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
         </select>
       </div>
 
-      {/* Joint Account Toggle */}
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="isJointAccount"
-          checked={isJointAccount}
-          onChange={(e) => setIsJointAccount(e.target.checked)}
-          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-        />
-        <label htmlFor="isJointAccount" className="text-sm font-medium text-gray-700">
-          Joint Account (Multiple Customers)
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Account Type
         </label>
+        <select
+          name="acc_type_id"
+          value={formData.acc_type_id}
+          onChange={handleChange}
+          required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">Select Account Type</option>
+          {accountTypes.map(type => (
+            <option key={type.acc_type_id} value={type.acc_type_id}>
+              {type.type_name}
+            </option>
+          ))}
+          {/* Joint Account Options */}
+          {accountTypes.map(type => (
+            <option key={`joint-${type.acc_type_id}`} value={`joint-${type.acc_type_id}`}>
+              {type.type_name} (Joint Account)
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Joint Customers Selection */}
-      {isJointAccount && (
+      {/* Joint Customers Selection - Show when joint account type is selected */}
+      {formData.acc_type_id.startsWith('joint-') && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Additional Joint Customers
@@ -608,26 +637,6 @@ const AccountForm = ({ customers, accountTypes, branches, onSubmit, isLoading })
           </p>
         </div>
       )}
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Account Type
-        </label>
-        <select
-          name="acc_type_id"
-          value={formData.acc_type_id}
-          onChange={handleChange}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Select Account Type</option>
-          {accountTypes.map(type => (
-            <option key={type.acc_type_id} value={type.acc_type_id}>
-              {type.type_name}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {!isAgent &&(
         <div>
