@@ -139,32 +139,38 @@ const Accounts = () => {
   // Freeze account mutation
   const freezeAccountMutation = useMutation({
     mutationFn: async (accountNumber) => {
+      // Show confirmation toast
+      toast.loading('Freezing account...', { id: 'freeze-account' });
+      
       const response = await api.put(`/accounts/${accountNumber}/freeze`);
       return response.data;
     },
     onSuccess: (data) => {
-      toast.success(data.message || 'Account frozen successfully!');
+      toast.success(data.message || 'Account frozen successfully!', { id: 'freeze-account' });
       queryClient.invalidateQueries('accounts');
     },
     onError: (error) => {
       const message = error.response?.data?.message || 'Failed to freeze account';
-      toast.error(message);
+      toast.error(message, { id: 'freeze-account' });
     }
   });
 
   // Unfreeze account mutation
   const unfreezeAccountMutation = useMutation({
     mutationFn: async (accountNumber) => {
+      // Show confirmation toast
+      toast.loading('Unfreezing account...', { id: 'unfreeze-account' });
+      
       const response = await api.put(`/accounts/${accountNumber}/unfreeze`);
       return response.data;
     },
     onSuccess: (data) => {
-      toast.success(data.message || 'Account unfrozen successfully!');
+      toast.success(data.message || 'Account unfrozen successfully!', { id: 'unfreeze-account' });
       queryClient.invalidateQueries('accounts');
     },
     onError: (error) => {
       const message = error.response?.data?.message || 'Failed to unfreeze account';
-      toast.error(message);
+      toast.error(message, { id: 'unfreeze-account' });
     }
   });
 
@@ -173,15 +179,11 @@ const Accounts = () => {
   };
 
   const handleFreezeAccount = (accountNumber) => {
-    if (window.confirm('Are you sure you want to freeze this account? This will prevent all transactions.')) {
-      freezeAccountMutation.mutate(accountNumber);
-    }
+    freezeAccountMutation.mutate(accountNumber);
   };
 
   const handleUnfreezeAccount = (accountNumber) => {
-    if (window.confirm('Are you sure you want to unfreeze this account? This will allow transactions to resume.')) {
-      unfreezeAccountMutation.mutate(accountNumber);
-    }
+    unfreezeAccountMutation.mutate(accountNumber);
   };
 
   const filteredAccounts = accountsData?.data?.filter(account => {
