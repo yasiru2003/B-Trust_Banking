@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../config/database');
 const { verifyToken, requireEmployee } = require('../middleware/auth');
 const smsService = require('../services/smsService');
+const fraudEngine = require('../services/fraudDetectionEngine');
+const dynamicFraudEngine = require('../services/dynamicFraudEngine');
 
 // Simple AI-like heuristic scoring for fraud detection over recent transactions
 // POST /api/fraud/scan
@@ -170,6 +172,237 @@ router.get('/', verifyToken, requireEmployee, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch fraud records'
+    });
+  }
+});
+
+// POST /api/fraud/evaluate - Evaluate a single transaction with static rules
+router.post('/evaluate', verifyToken, requireEmployee, async (req, res) => {
+  try {
+    const transaction = req.body;
+
+    if (!transaction.transaction_id || !transaction.account_number) {
+      return res.status(400).json({
+        success: false,
+        message: 'Transaction ID and account number are required'
+      });
+    }
+
+    // Evaluate with static rule engine (from fraudDetectionEngine.js)
+    const evaluation = await fraudEngine.evaluateTransaction(transaction);
+
+    // Log fraud detection result
+    if (evaluation.fraud_score >= 41) {
+      await db.query(`
+        INSERT INTO fraud_detection (flag_id, transaction_id, severity_level, status)
+        VALUES ($1, $2, $3, $4)
+      `, [
+        `FLG${Date.now()}`,
+        transaction.transaction_id,
+        evaluation.risk_level,
+        'PENDING'
+      ]);
+    }
+
+    // Send SMS alert for high-risk transactions
+    if (evaluation.fraud_score >= 71) {
+      try {
+        const accountInfo = await db.query(`
+          SELECT c.phone_number, c.customer_id
+          FROM account a
+          JOIN customer c ON a.customer_id = c.customer_id
+          WHERE a.account_number = $1
+        `, [transaction.account_number]);
+
+        if (accountInfo.rows.length > 0 && accountInfo.rows[0].phone_number) {
+          await smsService.sendFraudAlertDetailed(
+            accountInfo.rows[0].phone_number,
+            {
+              accountNumber: transaction.account_number,
+              reason: evaluation.triggered_rules.map(r => r.name).join(', '),
+              amount: transaction.amount,
+              timestamp: new Date().toLocaleString('en-LK', { timeZone: 'Asia/Colombo' }),
+              transactionId: transaction.transaction_id
+            }
+          );
+        }
+      } catch (smsError) {
+        console.error('SMS alert failed:', smsError);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: evaluation
+    });
+  } catch (error) {
+    console.error('Fraud evaluation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to evaluate transaction'
+    });
+  }
+});
+
+// GET /api/fraud/alerts - Get all pending fraud alerts
+router.get('/alerts', verifyToken, requireEmployee, async (req, res) => {
+  try {
+    const status = req.query.status || 'PENDING';
+    const limit = parseInt(req.query.limit) || 50;
+
+    const query = `
+      SELECT
+        fd.flag_id,
+        fd.transaction_id,
+        fd.severity_level,
+        fd.status,
+        fd.reviewed_by,
+        t.amount,
+        t.date,
+        t.account_number,
+        t.transaction_type_id,
+        CONCAT(c.first_name, ' ', c.last_name) as customer_name,
+        c.customer_id,
+        c.phone_number,
+        ea.employee_name as reviewed_by_name
+      FROM fraud_detection fd
+      LEFT JOIN transaction t ON fd.transaction_id = t.transaction_id
+      LEFT JOIN account a ON t.account_number = a.account_number
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      LEFT JOIN employee_auth ea ON fd.reviewed_by = ea.employee_id
+      WHERE fd.status = $1
+      ORDER BY t.date DESC
+      LIMIT $2
+    `;
+
+    const result = await db.query(query, [status, limit]);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length
+    });
+  } catch (error) {
+    console.error('Get alerts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch fraud alerts'
+    });
+  }
+});
+
+// GET /api/fraud/dashboard-stats - Get fraud statistics for dashboard
+router.get('/dashboard-stats', verifyToken, requireEmployee, async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 30;
+
+    const stats = await db.query(`
+      SELECT
+        COUNT(*) as total_alerts,
+        COUNT(CASE WHEN severity_level = 'HIGH' THEN 1 END) as high_risk,
+        COUNT(CASE WHEN severity_level = 'MEDIUM' THEN 1 END) as medium_risk,
+        COUNT(CASE WHEN severity_level = 'LOW' THEN 1 END) as low_risk,
+        COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending,
+        COUNT(CASE WHEN status = 'RESOLVED' THEN 1 END) as resolved,
+        COUNT(CASE WHEN status = 'FALSE_POSITIVE' THEN 1 END) as false_positives
+      FROM fraud_detection fd
+      LEFT JOIN transaction t ON fd.transaction_id = t.transaction_id
+      WHERE t.date >= NOW() - INTERVAL '${days} days'
+    `);
+
+    const recentAlerts = await db.query(`
+      SELECT
+        fd.flag_id,
+        fd.severity_level,
+        t.amount,
+        t.date,
+        t.account_number,
+        CONCAT(c.first_name, ' ', c.last_name) as customer_name
+      FROM fraud_detection fd
+      LEFT JOIN transaction t ON fd.transaction_id = t.transaction_id
+      LEFT JOIN account a ON t.account_number = a.account_number
+      LEFT JOIN customer c ON a.customer_id = c.customer_id
+      WHERE fd.status = 'PENDING'
+      ORDER BY t.date DESC
+      LIMIT 10
+    `);
+
+    res.json({
+      success: true,
+      data: {
+        statistics: stats.rows[0],
+        recent_alerts: recentAlerts.rows
+      }
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dashboard statistics'
+    });
+  }
+});
+
+// PUT /api/fraud/alerts/:flagId/review - Mark alert as reviewed
+router.put('/alerts/:flagId/review', verifyToken, requireEmployee, async (req, res) => {
+  try {
+    const { flagId } = req.params;
+    const { status, notes } = req.body;
+    const reviewedBy = req.user.employee_id;
+
+    const validStatuses = ['RESOLVED', 'FALSE_POSITIVE', 'ESCALATED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be RESOLVED, FALSE_POSITIVE, or ESCALATED'
+      });
+    }
+
+    await db.query(`
+      UPDATE fraud_detection
+      SET status = $1, reviewed_by = $2
+      WHERE flag_id = $3
+    `, [status, reviewedBy, flagId]);
+
+    res.json({
+      success: true,
+      message: 'Alert reviewed successfully'
+    });
+  } catch (error) {
+    console.error('Review alert error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to review alert'
+    });
+  }
+});
+
+// GET /api/fraud/rules - Get all active fraud detection rules (legacy endpoint - redirects to /api/fraud-rules)
+router.get('/rules', verifyToken, requireEmployee, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT
+        rule_id as id,
+        rule_name as name,
+        rule_category as category,
+        enabled,
+        score_weight,
+        threshold_config
+      FROM fraud_rules
+      WHERE enabled = true
+      ORDER BY rule_category, rule_id
+    `);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length
+    });
+  } catch (error) {
+    console.error('Get rules error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch rules'
     });
   }
 });

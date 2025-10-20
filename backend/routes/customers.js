@@ -125,14 +125,15 @@ router.get('/', hasPermission('view_assigned_customers'), async (req, res) => {
 router.get('/stats', hasPermission('view_assigned_customers'), async (req, res) => {
   try {
     let query = `
-      SELECT 
+      SELECT
         COUNT(*) as total_customers,
         COUNT(CASE WHEN kyc_status = true THEN 1 END) as verified_customers,
         COUNT(CASE WHEN kyc_status = false THEN 1 END) as unverified_customers,
-        COUNT(CASE WHEN phone_is_verified = true THEN 1 END) as phone_verified_customers
+        COUNT(CASE WHEN phone_is_verified = true THEN 1 END) as phone_verified_customers,
+        COUNT(CASE WHEN created_at >= date_trunc('month', CURRENT_DATE) THEN 1 END) as new_customers_30d
       FROM customer
     `;
-    
+
     const params = [];
     let paramCount = 0;
 

@@ -9,7 +9,7 @@ const bcrypt = require('bcryptjs');
 router.get('/dashboard', verifyToken, requireAdmin, async (req, res) => {
   try {
     const statsQuery = `
-      SELECT 
+      SELECT
         (SELECT COUNT(*) FROM branch) as total_branches,
         (SELECT COUNT(*) FROM employee_auth WHERE role = 'Agent') as total_agents,
         (SELECT COUNT(*) FROM employee_auth WHERE role = 'Manager') as total_managers,
@@ -23,6 +23,119 @@ router.get('/dashboard', verifyToken, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin dashboard error:', err);
     res.status(500).json({ success: false, message: 'Failed to fetch admin dashboard' });
+  }
+});
+
+// GET /api/admin/dashboard/stats - Unified dashboard statistics endpoint
+router.get('/dashboard/stats', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    // Run all queries in parallel for better performance
+    const [customersResult, accountsResult, transactionsResult, balanceResult] = await Promise.all([
+      // Customer statistics - using customer_id as proxy since no created_at column
+      db.query(`
+        SELECT
+          COUNT(*) as total,
+          0 as new_this_month
+        FROM customer
+      `),
+      // Account statistics
+      db.query(`
+        SELECT
+          COUNT(CASE WHEN status = true THEN 1 END) as active,
+          COUNT(CASE WHEN status = true AND opening_date >= date_trunc('month', CURRENT_DATE) THEN 1 END) as new_this_month
+        FROM account
+      `),
+      // Transaction statistics - using date column
+      db.query(`
+        SELECT
+          COUNT(CASE WHEN status = true THEN 1 END) as total,
+          COUNT(CASE WHEN status = true AND date >= date_trunc('month', CURRENT_DATE) THEN 1 END) as this_month,
+          COALESCE(SUM(CASE WHEN status = true THEN amount ELSE 0 END), 0) as total_value
+        FROM transaction
+      `),
+      // Total balance across all active accounts
+      db.query(`
+        SELECT
+          COALESCE(SUM(current_balance), 0) as total
+        FROM account
+        WHERE status = true
+      `)
+    ]);
+
+    const data = {
+      customers: {
+        total: parseInt(customersResult.rows[0].total) || 0,
+        newThisMonth: parseInt(customersResult.rows[0].new_this_month) || 0
+      },
+      accounts: {
+        active: parseInt(accountsResult.rows[0].active) || 0,
+        newThisMonth: parseInt(accountsResult.rows[0].new_this_month) || 0
+      },
+      transactions: {
+        total: parseInt(transactionsResult.rows[0].total) || 0,
+        thisMonth: parseInt(transactionsResult.rows[0].this_month) || 0,
+        totalValue: parseFloat(transactionsResult.rows[0].total_value) || 0
+      },
+      balance: {
+        total: parseFloat(balanceResult.rows[0].total) || 0
+      }
+    };
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (err) {
+    console.error('Dashboard stats error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch dashboard statistics'
+    });
+  }
+});
+
+// GET /api/admin/dashboard/recent-activity - Recent system activities
+router.get('/dashboard/recent-activity', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Fetch recent activities - simplified to avoid errors
+    const activitiesQuery = `
+      SELECT
+        'transaction_processed' as type,
+        CONCAT('Transaction of $', CAST(amount AS TEXT), ' - ', COALESCE(tt.type_name, 'Transaction')) as description,
+        t.date::timestamp as timestamp,
+        CAST(t.transaction_id AS TEXT) as ref_id
+      FROM transaction t
+      LEFT JOIN transaction_type tt ON t.transaction_type_id = tt.transaction_type_id
+      WHERE t.status = true
+      ORDER BY t.date DESC
+      LIMIT $1
+    `;
+
+    const result = await db.query(activitiesQuery, [limit]);
+
+    // Format activities with proper structure
+    const activities = result.rows.map(activity => ({
+      id: activity.ref_id,
+      type: activity.type,
+      description: activity.description,
+      timestamp: activity.timestamp,
+      metadata: {
+        ref_id: activity.ref_id
+      }
+    }));
+
+    res.json({
+      success: true,
+      activities
+    });
+  } catch (err) {
+    console.error('Recent activity error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent activities'
+    });
   }
 });
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Eye, Download, TrendingUp, TrendingDown, DollarSign, Calendar, Percent } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus, Search, Eye, DollarSign, Calendar, Percent, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -9,7 +9,8 @@ import api from '../services/authService';
 import toast from 'react-hot-toast';
 
 const FixedDeposits = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isAdmin = user?.role === 'Admin';
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
@@ -102,16 +103,21 @@ const FixedDeposits = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fixed Deposits</h1>
-          <p className="text-gray-600">Manage customer fixed deposits and investments</p>
+          <p className="text-gray-600">{isAdmin ? 'View customer fixed deposits and investments' : 'Manage customer fixed deposits and investments'}</p>
         </div>
-        {hasPermission('create_transaction') && (
-          <button 
+        {hasPermission('create_transaction') && !isAdmin && (
+          <button
             onClick={() => setIsAddModalOpen(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center"
           >
             <Plus className="h-4 w-4 mr-2" />
             Open FD
           </button>
+        )}
+        {isAdmin && (
+          <div className="text-sm text-gray-500 italic">
+            View-only access. Only Managers and Agents can create Fixed Deposits.
+          </div>
         )}
       </div>
 

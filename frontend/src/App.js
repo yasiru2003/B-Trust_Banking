@@ -13,10 +13,12 @@ import Accounts from './pages/Accounts';
 import Transactions from './pages/Transactions';
 import FixedDeposits from './pages/FixedDeposits';
 import Employees from './pages/Employees';
-import FraudDetection from './pages/FraudDetection';
 import Branches from './pages/Branches';
 import Reports from './pages/Reports';
 import AdvancedReports from './pages/AdvancedReports';
+import AccountSummaryReport from './pages/AccountSummaryReport';
+import ActiveFDReport from './pages/ActiveFDReport';
+import AgentPerformanceReport from './pages/AgentPerformanceReport';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import Profile from './pages/Profile';
@@ -56,12 +58,14 @@ function App() {
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="customers" element={<Customers />} />
                   <Route path="accounts" element={<Accounts />} />
+                  <Route path="accounts/summary-report" element={<AccountSummaryReport />} />
                   <Route path="transactions" element={<Transactions />} />
                   <Route path="fixed-deposits" element={<FixedDeposits />} />
+                  <Route path="fixed-deposits/active-report" element={<ActiveFDReport />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="manager/profile" element={<ManagerProfile />} />
                   <Route path="employees" element={<Employees />} />
-                  <Route path="fraud" element={<FraudDetection />} />
+                  <Route path="employees/performance-report" element={<AgentPerformanceReport />} />
                   <Route path="branches" element={<Branches />} />
                   <Route path="reports" element={<Reports />} />
                   <Route path="reports/advanced" element={<AdvancedReports />} />

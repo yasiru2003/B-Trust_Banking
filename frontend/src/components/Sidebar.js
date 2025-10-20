@@ -1,16 +1,15 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  CreditCard, 
-  ArrowLeftRight, 
+import {
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  ArrowLeftRight,
   PiggyBank,
-  UserCheck, 
-  Shield, 
-  Building2, 
-  BarChart3, 
-  Settings,
+  UserCheck,
+  Building2,
+  BarChart3,
+  FileText,
   X,
   User
 } from 'lucide-react';
@@ -34,10 +33,11 @@ const Sidebar = ({ isOpen, onClose }) => {
       permission: 'view_assigned_customers',
     },
     {
-      name: 'Accounts',
-      href: '/accounts',
+      name: 'Account Summary',
+      href: '/accounts/summary-report',
       icon: CreditCard,
-      permission: null,
+      permission: 'view_all',
+      adminOnly: true,
     },
     {
       name: 'Transactions',
@@ -58,10 +58,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       permission: 'view_all_employees',
     },
     {
-      name: 'Fraud Detection',
-      href: '/fraud',
-      icon: Shield,
-      permission: 'view_fraud',
+      name: 'Agent Performance',
+      href: '/employees/performance-report',
+      icon: FileText,
+      permission: 'view_all',
+      adminOnly: true,
+      indent: true,
     },
     {
       name: 'Branches',
@@ -75,12 +77,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       icon: BarChart3,
       permission: 'view_all',
       adminOnly: true,
-    },
-    {
-      name: 'Settings',
-      href: '/settings',
-      icon: Settings,
-      permission: null,
     },
     {
       name: 'My Profile',
@@ -151,13 +147,14 @@ const Sidebar = ({ isOpen, onClose }) => {
                     onClick={onClose}
                     className={`
                       flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200
+                      ${item.indent ? 'pl-8 text-xs' : ''}
                       ${isActive(item.href)
                         ? 'bg-primary-100 text-primary-700 border-r-2 border-primary-700'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                       }
                     `}
                   >
-                    <Icon className="mr-3 h-5 w-5" />
+                    <Icon className={`mr-3 ${item.indent ? 'h-4 w-4' : 'h-5 w-5'}`} />
                     {item.name}
                   </NavLink>
                 </li>
