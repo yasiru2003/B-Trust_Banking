@@ -15,6 +15,7 @@ const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
   const [agents, setAgents] = useState([]);
+  const [page, setPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [txCustomer, setTxCustomer] = useState(null);

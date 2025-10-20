@@ -13,6 +13,7 @@ const TransactionForm = ({ onClose, onSuccess }) => {
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+  const [requiresOTP, setRequiresOTP] = useState(false);
 
   const {
     register,
