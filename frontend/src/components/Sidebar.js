@@ -12,7 +12,10 @@ import {
   BarChart3, 
   Settings,
   X,
-  User
+  User,
+  Monitor,
+  Smartphone,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -63,6 +66,27 @@ const Sidebar = ({ isOpen, onClose }) => {
       icon: Shield,
       permission: 'view_fraud',
     },
+    // Session Management - Admin only
+    ...(user?.role === 'Admin' ? [{
+      name: 'Session Management',
+      href: '/admin/sessions',
+      icon: Monitor,
+      permission: 'admin_access',
+    }] : []),
+    // Device Management - Admin only
+    ...(user?.role === 'Admin' ? [{
+      name: 'Device Management',
+      href: '/admin/devices',
+      icon: Smartphone,
+      permission: 'admin_access',
+    }] : []),
+    // Security Monitoring - Admin only
+    ...(user?.role === 'Admin' ? [{
+      name: 'Security Monitor',
+      href: '/admin/security',
+      icon: Activity,
+      permission: 'admin_access',
+    }] : []),
     // Hide Branches for Agents; allow Managers/Admins via explicit permission or role
     ...(user?.role === 'Agent' ? [] : [{
       name: 'Branches',

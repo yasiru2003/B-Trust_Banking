@@ -21,3 +21,12 @@ COMMENT ON TABLE transaction_otp_verification IS 'Audit trail for transaction OT
 
 
 
+
+
+
+
+
+
+
+
+

@@ -20,3 +20,12 @@ ON transaction_otp_verification(phone_number);
 CREATE INDEX IF NOT EXISTS idx_transaction_otp_verification_status 
 ON transaction_otp_verification(verification_status);
 
+
+
+
+
+
+
+
+
+

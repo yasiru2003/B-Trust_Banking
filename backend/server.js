@@ -16,6 +16,8 @@ const fraudRoutes = require('./routes/fraud');
 const branchRoutes = require('./routes/branches');
 const otpRoutes = require('./routes/otp');
 const faceRoutes = require('./routes/face');
+const sessionRoutes = require('./routes/sessions');
+const { sessionMiddleware } = require('./middleware/sessionManager');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -47,6 +49,9 @@ app.use(cors({
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Session management middleware
+app.use(sessionMiddleware);
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {
@@ -96,6 +101,7 @@ app.use('/api/fixed-deposits', require('./routes/fixed-deposits-simple'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/verification', require('./routes/verification'));
 app.use('/api/transaction-otp', require('./routes/transaction-otp'));
+app.use('/api/sessions', sessionRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
