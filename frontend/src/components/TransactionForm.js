@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { DollarSign, User, CreditCard } from 'lucide-react';
+import { Banknote, User, CreditCard } from 'lucide-react';
 import api from '../services/authService';
 import toast from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
@@ -363,7 +363,7 @@ const TransactionForm = ({ onClose, onSuccess }) => {
           Amount (LKR) *
         </label>
         <div className="relative">
-          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Banknote className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="number"
             step="0.01"
