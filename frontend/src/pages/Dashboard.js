@@ -5,13 +5,11 @@ import {
   CreditCard, 
   ArrowLeftRight, 
   Shield, 
-  TrendingUp, 
   DollarSign,
   AlertTriangle,
   CheckCircle,
   UserCheck,
   Building2,
-  Activity,
   Eye
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -163,7 +161,6 @@ const Dashboard = () => {
 
       // Admin Dashboard - System Summary Cards
       if (isAdmin) {
-        const today = new Date().toISOString().split('T')[0];
         const todayTransactions = transactionStats?.data?.today_transactions || 0;
         const todayAmount = transactionStats?.data?.today_amount || 0;
         const fraudAlerts = fraudStats?.data?.today_alerts || 0;

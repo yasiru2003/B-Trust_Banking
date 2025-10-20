@@ -7,8 +7,6 @@ import {
   Activity, 
   AlertTriangle,
   CheckCircle,
-  Users,
-  TrendingUp,
   RefreshCw
 } from 'lucide-react';
 import api from '../services/authService';

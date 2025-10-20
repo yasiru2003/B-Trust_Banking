@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Filter, Edit, Trash2, Eye, CheckCircle, XCircle, Download } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
@@ -14,7 +14,6 @@ const Customers = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({});
-  const [page, setPage] = useState(1);
   const [agents, setAgents] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);

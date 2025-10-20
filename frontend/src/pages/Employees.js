@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, Plus, Snowflake, Sun } from 'lucide-react';
+import { Plus, Snowflake, Sun } from 'lucide-react';
 import api from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -38,7 +38,7 @@ const Employees = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const onCreate = async (e) => {
     e.preventDefault();
