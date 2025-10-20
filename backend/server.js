@@ -90,6 +90,15 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Test API endpoint
+app.get('/api/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'API is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Test Filebase connection endpoint
 app.get('/test-filebase', async (req, res) => {
   try {
@@ -109,6 +118,7 @@ app.get('/test-filebase', async (req, res) => {
 });
 
 // API Routes
+console.log('🔗 Registering API routes...');
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/accounts', accountRoutes);
@@ -129,12 +139,13 @@ app.use('/api/fraud', require('./routes/fraud'));
 app.use('/api/fraud-detection', require('./routes/fraudDetection'));
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin/activity-audit', activityAuditRoutes);
+console.log('✅ API routes registered successfully');
 
-// 404 handler
-app.use('*', (req, res) => {
+// 404 handler for API routes only
+app.use('/api/*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: 'API route not found'
   });
 });
 
