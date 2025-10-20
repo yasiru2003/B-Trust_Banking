@@ -12,7 +12,6 @@ const customerRoutes = require('./routes/customers');
 const accountRoutes = require('./routes/accounts');
 const transactionRoutes = require('./routes/transactions');
 const employeeRoutes = require('./routes/employees');
-const fraudRoutes = require('./routes/fraud');
 const branchRoutes = require('./routes/branches');
 const otpRoutes = require('./routes/otp');
 const faceRoutes = require('./routes/face');
@@ -92,7 +91,6 @@ app.use('/api/customers', customerRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/employees', employeeRoutes);
-app.use('/api/fraud', fraudRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/otp', otpRoutes);
 app.use('/api/face', faceRoutes);
@@ -102,6 +100,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/verification', require('./routes/verification'));
 app.use('/api/transaction-otp', require('./routes/transaction-otp'));
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/reports', require('./routes/reports'));
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -128,17 +127,18 @@ const startServer = async () => {
     // Test database connection
     await db.testConnection();
     console.log('✅ Database connected successfully');
-    
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-    });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    console.error('⚠️  Database connection failed:', error.message);
+    console.log('⚠️  Starting server anyway - database operations may fail');
   }
+
+  // Start server regardless of database status
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+    console.log(`🌐 API: http://localhost:${PORT}/api`);
+  });
 };
 
 // Graceful shutdown

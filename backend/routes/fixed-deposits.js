@@ -223,15 +223,23 @@ router.get('/:fdNumber', verifyToken, requireAgent, async (req, res) => {
   }
 });
 
-// POST /api/fixed-deposits - Open new FD
+// POST /api/fixed-deposits - Open new FD (Managers and Agents only)
 router.post('/', verifyToken, requireAgent, async (req, res) => {
   const client = await db.getClient();
-  
+
   try {
+    // Block Admin from creating FDs
+    if (req.user.role === 'Admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin users cannot create Fixed Deposits. Only Managers and Agents can create FDs.'
+      });
+    }
+
     await client.query('BEGIN');
 
     // Validate request data
-    const { error, value } = fdOpeningSchema.validate(req.body);
+    const { error, value} = fdOpeningSchema.validate(req.body);
     if (error) {
       await client.query('ROLLBACK');
       return res.status(400).json({
