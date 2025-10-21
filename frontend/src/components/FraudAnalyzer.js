@@ -119,7 +119,7 @@ const LiveFraudAnalyzer = () => {
         pingIntervalRef.current = null;
       }
     };
-  }, [user?.role, handleWebSocketMessage]);
+  }, [user?.role]);
 
   // Initialize audio for fraud alerts
   useEffect(() => {

@@ -62,8 +62,20 @@ const Dashboard = () => {
     queryKey: ['recent-activity', user?.employee_id],
     queryFn: async () => {
       if (userType === 'employee') {
-        const response = await api.get('/customers/recent-activity');
-        return response.data;
+        // Use different endpoints based on user role
+        const endpoint = user?.role === 'Admin' 
+          ? '/admin/recent-activity' 
+          : user?.role === 'Manager' 
+          ? '/manager/recent-activity'
+          : '/customers/recent-activity';
+        
+        try {
+          const response = await api.get(endpoint);
+          return response.data;
+        } catch (error) {
+          console.warn(`Failed to fetch recent activity from ${endpoint}:`, error);
+          return { data: [] };
+        }
       }
       return { data: [] };
     },
