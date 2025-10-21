@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, Building2, User, CreditCard, Shield } from 'lucide-react';
+import { Eye, EyeOff, Building2, User, ShieldCheck, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -21,7 +21,7 @@ const Login = () => {
     defaultValues: {
       email: '',
       password: '',
-      userType: 'employee',
+      userType: 'agent',
     },
   });
 
@@ -72,7 +72,7 @@ const Login = () => {
           <div className="space-y-6">
             <div className="flex items-center space-x-4">
               <div className="h-12 w-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6" />
+                <ShieldCheck className="h-6 w-6" />
               </div>
               <div>
                 <h3 className="font-semibold">Advanced Security</h3>
@@ -82,11 +82,11 @@ const Login = () => {
             
             <div className="flex items-center space-x-4">
               <div className="h-12 w-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                <CreditCard className="h-6 w-6" />
+                <Users className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="font-semibold">Complete Banking</h3>
-                <p className="text-primary-100 text-sm">All your banking needs in one place</p>
+                <h3 className="font-semibold">Employee Portal</h3>
+                <p className="text-primary-100 text-sm">Secure access for bank staff</p>
               </div>
             </div>
             
@@ -95,8 +95,8 @@ const Login = () => {
                 <User className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="font-semibold">24/7 Support</h3>
-                <p className="text-primary-100 text-sm">Always here to help you</p>
+                <h3 className="font-semibold">Role-Based Access</h3>
+                <p className="text-primary-100 text-sm">Agent, Manager, and Admin roles</p>
               </div>
             </div>
           </div>
@@ -113,16 +113,16 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* User Type Selection */}
+            {/* Employee Role Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account Type
+                Employee Role
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { value: 'employee', label: 'Employee', icon: User },
-                  { value: 'customer', label: 'Customer', icon: CreditCard },
-                  { value: 'user', label: 'User', icon: User },
+                  { value: 'agent', label: 'Agent', icon: User },
+                  { value: 'manager', label: 'Manager', icon: Users },
+                  { value: 'admin', label: 'Admin', icon: ShieldCheck },
                 ].map(({ value, label, icon: Icon }) => (
                   <button
                     key={value}
@@ -214,17 +214,6 @@ const Login = () => {
               Sign In
             </button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Working Credentials:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Admin:</strong> admin@btrust.com / admin123</p>
-              <p><strong>Admin (Alt):</strong> admin@bt.com / admin123</p>
-              <p><strong>Employee:</strong> employee@bt.com / password123</p>
-              <p><strong>Customer:</strong> customer@bt.com / password123</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
