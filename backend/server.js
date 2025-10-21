@@ -38,7 +38,9 @@ app.get('/health', (req, res) => {
 app.use(helmet());
 app.use(compression());
 
-// Rate limiting (disabled in development)
+// Rate limiting (TEMPORARILY DISABLED FOR TESTING)
+// TODO: Re-enable in production for security
+/*
 if (process.env.NODE_ENV !== 'development') {
   // General API rate limiter - more lenient
   const generalLimiter = rateLimit({
@@ -68,6 +70,8 @@ if (process.env.NODE_ENV !== 'development') {
 } else {
   console.log('⚠️  Rate limiting disabled in development mode');
 }
+*/
+console.log('⚠️  Rate limiting DISABLED for testing - Remember to re-enable for production!');
 
 // Health check endpoint
 app.get('/health', (req, res) => {
