@@ -140,3 +140,4 @@ SELECT COUNT(*) as fraud_rules_count FROM fraud_rules;
 SELECT COUNT(*) as fraud_alerts_count FROM fraud_alerts;
 
 
+

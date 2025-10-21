@@ -21,11 +21,12 @@ const Login = () => {
     defaultValues: {
       email: '',
       password: '',
-      userType: 'agent',
+      userType: 'employee',
+      role: 'Agent', // Track the visual role selection
     },
   });
 
-  const userType = watch('userType');
+  const role = watch('role');
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -120,17 +121,17 @@ const Login = () => {
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { value: 'agent', label: 'Agent', icon: User },
-                  { value: 'manager', label: 'Manager', icon: Users },
-                  { value: 'admin', label: 'Admin', icon: ShieldCheck },
+                  { value: 'Agent', label: 'Agent', icon: User },
+                  { value: 'Manager', label: 'Manager', icon: Users },
+                  { value: 'Admin', label: 'Admin', icon: ShieldCheck },
                 ].map(({ value, label, icon: Icon }) => (
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setValue('userType', value)}
+                    onClick={() => setValue('role', value)}
                     className={`
                       flex flex-col items-center p-3 rounded-lg border-2 transition-colors
-                      ${userType === value
+                      ${role === value
                         ? 'border-primary-500 bg-primary-50 text-primary-700'
                         : 'border-gray-200 hover:border-gray-300 text-gray-600'
                       }
@@ -141,6 +142,9 @@ const Login = () => {
                   </button>
                 ))}
               </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Select your role type - the system will verify your credentials
+              </p>
             </div>
 
             {/* Email */}

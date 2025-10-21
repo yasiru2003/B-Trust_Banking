@@ -60,3 +60,4 @@ echo ""
 echo "📋 Database is ready for production use."
 echo "🔗 Connection string: $DATABASE_URL"
 
+

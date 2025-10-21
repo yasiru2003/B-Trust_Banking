@@ -53,3 +53,4 @@ testFraudDetection().then(() => {
   process.exit(1);
 });
 
+

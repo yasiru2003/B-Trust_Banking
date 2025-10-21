@@ -116,6 +116,15 @@ export const AuthProvider = ({ children }) => {
             }
           });
           
+          // Handle rate limiting - keep token and try again later
+          if (error.response?.status === 429) {
+            console.warn('Rate limit hit during auth check. Keeping token for later verification.');
+            // Don't remove token, just set loading to false
+            dispatch({ type: 'LOGIN_FAILURE' });
+            toast.error('Too many requests. Please wait a moment before trying again.');
+            return;
+          }
+          
           // Only remove token if it's an authentication error, not a network error
           if (error.response?.status === 401 || error.response?.status === 403) {
             localStorage.removeItem('token');
@@ -154,7 +163,15 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       dispatch({ type: 'LOGIN_FAILURE' });
-      const message = error.response?.data?.message || 'Login failed';
+      
+      // Handle rate limiting specifically
+      if (error.response?.status === 429) {
+        const message = 'Too many login attempts. Please wait 15 minutes before trying again.';
+        toast.error(message);
+        return { success: false, message, rateLimited: true };
+      }
+      
+      const message = error.response?.data?.message || error.response?.data || 'Login failed';
       toast.error(message);
       return { success: false, message };
     }

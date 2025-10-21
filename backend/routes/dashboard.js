@@ -94,3 +94,4 @@ router.get('/chart', verifyToken, cacheMiddleware(600), async (req, res) => {
 
 module.exports = router;
 
+

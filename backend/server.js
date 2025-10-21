@@ -40,14 +40,31 @@ app.use(compression());
 
 // Rate limiting (disabled in development)
 if (process.env.NODE_ENV !== 'development') {
-  const limiter = rateLimit({
+  // General API rate limiter - more lenient
+  const generalLimiter = rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500, // Increased from 100 to 500
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
   });
-  app.use('/api/', limiter);
+
+  // Stricter rate limiter for auth endpoints to prevent brute force
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50, // 50 login attempts per 15 minutes
+    message: 'Too many authentication attempts from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true, // Don't count successful requests
+  });
+
+  // Apply auth limiter only to login/register endpoints
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
+  
+  // Apply general limiter to all other API routes
+  app.use('/api/', generalLimiter);
 } else {
   console.log('⚠️  Rate limiting disabled in development mode');
 }

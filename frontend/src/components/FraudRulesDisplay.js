@@ -216,3 +216,4 @@ const FraudRulesDisplay = () => {
 
 export default FraudRulesDisplay;
 
+

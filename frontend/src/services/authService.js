@@ -50,6 +50,12 @@ api.interceptors.response.use(
       }
     }
     
+    // Handle rate limiting - don't try to refresh or redirect
+    if (error.response?.status === 429) {
+      console.warn('Rate limit exceeded. Please wait before making more requests.');
+      return Promise.reject(error);
+    }
+    
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
@@ -68,10 +74,16 @@ api.interceptors.response.use(
           }
         } catch (refreshError) {
           console.error('Token refresh failed:', refreshError);
+          // Don't redirect on rate limit errors during refresh
+          if (refreshError.response?.status !== 429) {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+          }
+          return Promise.reject(refreshError);
         }
       }
       
-      // If refresh fails or no token, redirect to login
+      // If refresh fails or no token, redirect to login (but not on rate limit)
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
