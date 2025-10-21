@@ -45,6 +45,65 @@ const LiveFraudAnalyzer = () => {
     }
   };
 
+  // WebSocket message handler - defined before useEffect
+  const handleWebSocketMessage = (data) => {
+    switch (data.type) {
+      case 'fraud_stats':
+        setFraudStats(data.data);
+        break;
+      case 'fraud_alert':
+        handleFraudAlert(data.data);
+        break;
+      case 'transaction_update':
+        handleTransactionUpdate(data.data);
+        break;
+      case 'pong':
+        // Keep connection alive
+        break;
+      default:
+        // Handle unknown message types
+        break;
+    }
+  };
+
+  const handleFraudAlert = (alert) => {
+    setLastFraudAlert(alert);
+    
+    // Play sound if enabled
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.play().catch(err => console.error('Audio play error:', err));
+    }
+    
+    // Add to timeline
+    const newPoint = {
+      time: new Date(alert.timestamp || Date.now()).toLocaleTimeString(),
+      riskScore: alert.risk_score || 0,
+      transactionId: alert.transaction_id,
+      amount: alert.amount || 0
+    };
+    
+    setTimelineData(prev => {
+      const updated = [...prev, newPoint];
+      // Keep only last maxDataPoints
+      return updated.slice(-maxDataPoints);
+    });
+  };
+
+  const handleTransactionUpdate = (transaction) => {
+    // Update timeline with new transaction data
+    const newPoint = {
+      time: new Date().toLocaleTimeString(),
+      riskScore: transaction.risk_score || 0,
+      transactionId: transaction.transaction_id,
+      amount: transaction.amount || 0
+    };
+    
+    setTimelineData(prev => {
+      const updated = [...prev, newPoint];
+      return updated.slice(-maxDataPoints);
+    });
+  };
+
   // Initialize WebSocket connection
   useEffect(() => {
     if (user?.role !== 'Admin') return;
@@ -125,74 +184,6 @@ const LiveFraudAnalyzer = () => {
   useEffect(() => {
     audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
   }, []);
-
-  const handleWebSocketMessage = (data) => {
-    switch (data.type) {
-      case 'fraud_stats':
-        setFraudStats(data.data);
-        break;
-      case 'fraud_alert':
-        handleFraudAlert(data.data);
-        break;
-      case 'transaction_update':
-        handleTransactionUpdate(data.data);
-        break;
-      case 'pong':
-        // Keep connection alive
-        break;
-      default:
-        // Handle unknown message types
-        break;
-    }
-  };
-
-  const handleFraudAlert = (alert) => {
-    setLastFraudAlert(alert);
-    
-    // Play alert sound if enabled
-    if (soundEnabled && audioRef.current) {
-      audioRef.current.play().catch(console.error);
-    }
-
-    // Add to timeline data
-    const newPoint = {
-      time: new Date(alert.detected_at).toISOString(),
-      timestamp: new Date(alert.detected_at).getTime(),
-      amount: alert.amount,
-      type: alert.transaction_type,
-      customer: alert.customer_name,
-      account: alert.account_number,
-      isFraud: true,
-      fraudScore: alert.fraud_score,
-      severity: alert.severity,
-      fraudDescription: alert.description,
-      alertId: alert.alert_id
-    };
-
-    setTimelineData(prev => {
-      const updated = [...prev, newPoint];
-      return updated.slice(-maxDataPoints); // Keep only last 100 points
-    });
-  };
-
-  const handleTransactionUpdate = (transaction) => {
-    const newPoint = {
-      time: new Date(transaction.transaction_date).toISOString(),
-      timestamp: new Date(transaction.transaction_date).getTime(),
-      amount: transaction.amount,
-      type: transaction.transaction_type,
-      customer: transaction.customer_id,
-      account: transaction.account_id,
-      isFraud: transaction.isFraud,
-      fraudScore: transaction.fraudScore,
-      severity: transaction.severity
-    };
-
-    setTimelineData(prev => {
-      const updated = [...prev, newPoint];
-      return updated.slice(-maxDataPoints);
-    });
-  };
 
   // Fetch initial data
   useEffect(() => {
