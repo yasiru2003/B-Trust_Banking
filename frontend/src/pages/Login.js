@@ -37,7 +37,10 @@ const Login = () => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      const result = await login(data);
+      // Remove 'role' field - it's only for UI, backend doesn't expect it
+      const { role, ...loginData } = data;
+      
+      const result = await login(loginData);
       if (result.success) {
         // Navigation will be handled by the redirect above
       }
